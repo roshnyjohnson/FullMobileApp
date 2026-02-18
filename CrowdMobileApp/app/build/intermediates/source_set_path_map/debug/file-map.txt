@@ -1,0 +1,44 @@
+com.crowdcount.app-camera-core-1.3.1-0 C:\Users\ASUS\.gradle\caches\transforms-3\03ee19389ea12ea263f045360e663061\transformed\camera-core-1.3.1\res
+com.crowdcount.app-profileinstaller-1.3.0-1 C:\Users\ASUS\.gradle\caches\transforms-3\04942b0cfa3c54a13536feeb4459d260\transformed\profileinstaller-1.3.0\res
+com.crowdcount.app-camera-video-1.3.1-2 C:\Users\ASUS\.gradle\caches\transforms-3\066ce8631f40bd7a73db3a7a7ee53366\transformed\camera-video-1.3.1\res
+com.crowdcount.app-emoji2-views-helper-1.2.0-3 C:\Users\ASUS\.gradle\caches\transforms-3\0c112cbee2369bd6298fc9dc9c29a137\transformed\emoji2-views-helper-1.2.0\res
+com.crowdcount.app-coordinatorlayout-1.1.0-4 C:\Users\ASUS\.gradle\caches\transforms-3\12888a080ee305f5cce492b7d40185f6\transformed\coordinatorlayout-1.1.0\res
+com.crowdcount.app-drawerlayout-1.1.1-5 C:\Users\ASUS\.gradle\caches\transforms-3\12c282b00896547ad60c8facbada3531\transformed\drawerlayout-1.1.1\res
+com.crowdcount.app-fragment-1.3.6-6 C:\Users\ASUS\.gradle\caches\transforms-3\15dee8b022124a627ec2f2060fcea408\transformed\fragment-1.3.6\res
+com.crowdcount.app-transition-1.2.0-7 C:\Users\ASUS\.gradle\caches\transforms-3\198dcdedb2f396357e39e277d5be15f8\transformed\transition-1.2.0\res
+com.crowdcount.app-activity-1.8.2-8 C:\Users\ASUS\.gradle\caches\transforms-3\1d6c7143c0807041b9a12df591602329\transformed\activity-1.8.2\res
+com.crowdcount.app-core-1.12.0-9 C:\Users\ASUS\.gradle\caches\transforms-3\26b33424439aa93a734a25261d8ff70f\transformed\core-1.12.0\res
+com.crowdcount.app-appcompat-resources-1.6.1-10 C:\Users\ASUS\.gradle\caches\transforms-3\345540105e0bccfd4ff28fb642bd4a4e\transformed\appcompat-resources-1.6.1\res
+com.crowdcount.app-savedstate-1.2.1-11 C:\Users\ASUS\.gradle\caches\transforms-3\380fed2d4a6a243f7f71dc4d35552b88\transformed\savedstate-1.2.1\res
+com.crowdcount.app-lifecycle-livedata-core-2.7.0-12 C:\Users\ASUS\.gradle\caches\transforms-3\45c4a9bc30bccf08135866fb36a04e95\transformed\lifecycle-livedata-core-2.7.0\res
+com.crowdcount.app-camera-view-1.3.1-13 C:\Users\ASUS\.gradle\caches\transforms-3\478b9d2690f7c653a88824ecb7038fd0\transformed\camera-view-1.3.1\res
+com.crowdcount.app-activity-ktx-1.8.2-14 C:\Users\ASUS\.gradle\caches\transforms-3\53d39181cef1cc05429b9e1f019c4ac8\transformed\activity-ktx-1.8.2\res
+com.crowdcount.app-savedstate-ktx-1.2.1-15 C:\Users\ASUS\.gradle\caches\transforms-3\6665f627c3d90b17707214b392c71b49\transformed\savedstate-ktx-1.2.1\res
+com.crowdcount.app-appcompat-1.6.1-16 C:\Users\ASUS\.gradle\caches\transforms-3\68ee7fa6063ab498582b7dbcb918ed0b\transformed\appcompat-1.6.1\res
+com.crowdcount.app-lifecycle-viewmodel-savedstate-2.7.0-17 C:\Users\ASUS\.gradle\caches\transforms-3\6e9b3032250fc6732d1625db11fa9684\transformed\lifecycle-viewmodel-savedstate-2.7.0\res
+com.crowdcount.app-startup-runtime-1.1.1-18 C:\Users\ASUS\.gradle\caches\transforms-3\7005ad631727d7f8384063dd538d8145\transformed\startup-runtime-1.1.1\res
+com.crowdcount.app-camera-lifecycle-1.3.1-19 C:\Users\ASUS\.gradle\caches\transforms-3\7652dc84255a4a66ce279823e28332f6\transformed\camera-lifecycle-1.3.1\res
+com.crowdcount.app-viewpager2-1.0.0-20 C:\Users\ASUS\.gradle\caches\transforms-3\7afc4034d91a7aad930ff4b79d2329fc\transformed\viewpager2-1.0.0\res
+com.crowdcount.app-core-runtime-2.2.0-21 C:\Users\ASUS\.gradle\caches\transforms-3\7eb9a2eb61f7d9463c7861c776ae4294\transformed\core-runtime-2.2.0\res
+com.crowdcount.app-emoji2-1.2.0-22 C:\Users\ASUS\.gradle\caches\transforms-3\86e7306dc7b81c568a80d521f4c973f1\transformed\emoji2-1.2.0\res
+com.crowdcount.app-lifecycle-runtime-2.7.0-23 C:\Users\ASUS\.gradle\caches\transforms-3\962ebb34f24718c13ccadc6fd33315a7\transformed\lifecycle-runtime-2.7.0\res
+com.crowdcount.app-lifecycle-livedata-core-ktx-2.7.0-24 C:\Users\ASUS\.gradle\caches\transforms-3\9be7fbb92f10ca3e3bb668c83d0ffda5\transformed\lifecycle-livedata-core-ktx-2.7.0\res
+com.crowdcount.app-lifecycle-livedata-2.7.0-25 C:\Users\ASUS\.gradle\caches\transforms-3\9c080cc774ab7c6fd7e212cedb9da510\transformed\lifecycle-livedata-2.7.0\res
+com.crowdcount.app-material-1.11.0-26 C:\Users\ASUS\.gradle\caches\transforms-3\aa0bac5e5ad40363ff340a063c704d42\transformed\material-1.11.0\res
+com.crowdcount.app-lifecycle-viewmodel-ktx-2.7.0-27 C:\Users\ASUS\.gradle\caches\transforms-3\abd02bfd1ab3ce5b1c9f8d75ffce3e78\transformed\lifecycle-viewmodel-ktx-2.7.0\res
+com.crowdcount.app-camera-camera2-1.3.1-28 C:\Users\ASUS\.gradle\caches\transforms-3\d4f0ccaece7f51f63d94a1cddd159419\transformed\camera-camera2-1.3.1\res
+com.crowdcount.app-cardview-1.0.0-29 C:\Users\ASUS\.gradle\caches\transforms-3\e1c5ceaacca00e777fbcdb6ae562b6c7\transformed\cardview-1.0.0\res
+com.crowdcount.app-core-ktx-1.12.0-30 C:\Users\ASUS\.gradle\caches\transforms-3\e3cfa18caf64e0cef24d41e509ed8e24\transformed\core-ktx-1.12.0\res
+com.crowdcount.app-recyclerview-1.1.0-31 C:\Users\ASUS\.gradle\caches\transforms-3\e8f89c5e6a90eb56852bba159cd07667\transformed\recyclerview-1.1.0\res
+com.crowdcount.app-annotation-experimental-1.3.1-32 C:\Users\ASUS\.gradle\caches\transforms-3\ec5abbb6b568e3d41fd025861acd6686\transformed\annotation-experimental-1.3.1\res
+com.crowdcount.app-lifecycle-runtime-ktx-2.7.0-33 C:\Users\ASUS\.gradle\caches\transforms-3\ee6dcde6bf4ee667c326cfaf944ab43e\transformed\lifecycle-runtime-ktx-2.7.0\res
+com.crowdcount.app-lifecycle-viewmodel-2.7.0-34 C:\Users\ASUS\.gradle\caches\transforms-3\f9910c2c40403649b289bfe2e31c9a14\transformed\lifecycle-viewmodel-2.7.0\res
+com.crowdcount.app-constraintlayout-2.1.4-35 C:\Users\ASUS\.gradle\caches\transforms-3\fc0ab7c451682f9c3fd5548a08a5b2d1\transformed\constraintlayout-2.1.4\res
+com.crowdcount.app-lifecycle-process-2.7.0-36 C:\Users\ASUS\.gradle\caches\transforms-3\fcc3a04a85a4e8060d8602de8165fe32\transformed\lifecycle-process-2.7.0\res
+com.crowdcount.app-pngs-37 E:\Mini Project\FullMobileApp\CrowdMobileApp\app\build\generated\res\pngs\debug
+com.crowdcount.app-resValues-38 E:\Mini Project\FullMobileApp\CrowdMobileApp\app\build\generated\res\resValues\debug
+com.crowdcount.app-packageDebugResources-39 E:\Mini Project\FullMobileApp\CrowdMobileApp\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.crowdcount.app-packageDebugResources-40 E:\Mini Project\FullMobileApp\CrowdMobileApp\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.crowdcount.app-merged_res-41 E:\Mini Project\FullMobileApp\CrowdMobileApp\app\build\intermediates\merged_res\debug
+com.crowdcount.app-debug-42 E:\Mini Project\FullMobileApp\CrowdMobileApp\app\src\debug\res
+com.crowdcount.app-main-43 E:\Mini Project\FullMobileApp\CrowdMobileApp\app\src\main\res
