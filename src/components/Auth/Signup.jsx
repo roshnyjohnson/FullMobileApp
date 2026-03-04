@@ -13,7 +13,10 @@ const Signup = () => {
     adminId: "",
   });
 
-  // Mock Admin List (In real app → fetched from backend)
+  const [modalMessage, setModalMessage] = useState("");
+  const [showModal, setShowModal] = useState(false);
+
+  // Mock Admin List (Later fetch from backend)
   const admins = [
     { id: "admin1", name: "Admin One" },
     { id: "admin2", name: "Admin Two" },
@@ -37,36 +40,35 @@ const Signup = () => {
 
     console.log("Signup Data Submitted:", formData);
 
-    // --- MOCK APPROVAL LOGIC ---
-    // In real app → this comes from backend response
-    const isApproved = false;
+    // 🔴 Change this later when backend connected
+    const isApproved = true;
+
+    let message = "";
 
     if (formData.role === "Admin") {
-      if (isApproved) {
-        alert("Approved! Redirecting to login...");
-        navigate("/login");
-      } else {
-        alert("Waiting for Owner's approval.");
-      }
+      message = isApproved
+        ? "Your Admin account has been approved successfully!"
+        : "Waiting for Owner's approval.";
     }
 
     if (formData.role === "Volunteer") {
-      if (isApproved) {
-        alert("Approved! Redirecting to login...");
-        navigate("/login");
-      } else {
-        alert("Waiting for Admin's approval.");
-      }
+      message = isApproved
+        ? "Your Volunteer account has been approved successfully!"
+        : "Waiting for Admin's approval.";
     }
+
+    setModalMessage(message);
+    setShowModal(true);
   };
 
   return (
     <div className="auth-container">
       <div className="auth-card">
 
+        {/* Back Button */}
         <button
           className="back-btn"
-          onClick={() => window.history.back()}
+          onClick={() => navigate("/")}
         >
           ← Back
         </button>
@@ -163,6 +165,29 @@ const Signup = () => {
 
         </form>
       </div>
+
+      {/* Modal Popup */}
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <h3>Signup Status</h3>
+            <p>{modalMessage}</p>
+
+            <button
+              className="auth-btn"
+              onClick={() => {
+                setShowModal(false);
+
+                if (modalMessage.includes("approved")) {
+                  navigate("/");
+                }
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,15 +1,51 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import "../../components/Auth/Auth.css";
 import crowdImage from "../../assets/loginImage.jpg";
 
 function Login() {
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    console.log(email, password);
+
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/login",
+        { email, password }
+      );
+
+      const { token, role, status } = response.data;
+
+      // If not approved
+      if (status !== "approved") {
+        setErrorMessage("Your account is not approved yet.");
+        return;
+      }
+
+      // Save token (for protected routes later)
+      localStorage.setItem("token", token);
+      localStorage.setItem("role", role);
+
+      // Role Based Redirect
+      if (role === "Admin") {
+        navigate("/admin-dashboard");
+      } else if (role === "Volunteer") {
+        navigate("/volunteer-dashboard");
+      } else if (role === "Owner") {
+        navigate("/owner-dashboard");
+      }
+
+    } catch (error) {
+      setErrorMessage(
+        error.response?.data?.message || "Login failed"
+      );
+    }
   };
 
   return (
@@ -54,6 +90,13 @@ function Login() {
             <button type="submit">Login</button>
           </form>
 
+          {/* Error Message */}
+          {errorMessage && (
+            <p style={{ color: "red", marginTop: "10px" }}>
+              {errorMessage}
+            </p>
+          )}
+
           <p className="forgot">Forgot Password?</p>
 
           <p className="signup-text">
@@ -63,7 +106,6 @@ function Login() {
 
         </div>
       </div>
-
     </div>
   );
 }
