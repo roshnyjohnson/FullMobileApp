@@ -1,0 +1,8 @@
+﻿ALL USERS:
+Email: rebecca1234@gmail.com | Confirmed: True | ID: 9ed045c5-3c19-454c-b8f6-3c6ef2bfb53a
+Email: bluerabbit@gmail.com | Confirmed: True | ID: bff84ad1-8079-46c1-ac27-d8e9b30b5dab
+Email: purpleelephant99@gmail.com | Confirmed: True | ID: fc901a3c-6013-47d0-9a41-6fc94c87e113
+Email: jubleseb@gmail.com | Confirmed: True | ID: b1185b8f-10df-4639-a208-88603d74e45c
+Email: floraj1999@gmail.com | Confirmed: False | ID: 0fa1c1a9-eade-4f00-a57f-cfe3e8631bb9
+Email: roshnyextramail@gmail.com | Confirmed: True | ID: 0a9fcaa2-4da0-4111-8883-ed9a1ddd00bd
+Email: johnsonroshny05@gmail.com | Confirmed: False | ID: 81d69eaf-bb36-4324-b654-f6957ccac115

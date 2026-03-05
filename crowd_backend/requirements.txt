@@ -1,3 +1,5 @@
 fastapi
 uvicorn
-sqlalchemy 
+sqlalchemy
+supabase==2.3.0
+python-dotenv

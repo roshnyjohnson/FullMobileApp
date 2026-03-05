@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Auth.css";
+import { supabase } from "../../supabaseClient";
+import { API_BASE } from "../../api";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -13,52 +15,98 @@ const Signup = () => {
     adminId: "",
   });
 
+  const [admins, setAdmins] = useState([]);        // Real admins from backend
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Mock Admin List (Later fetch from backend)
-  const admins = [
-    { id: "admin1", name: "Admin One" },
-    { id: "admin2", name: "Admin Two" },
-    { id: "admin3", name: "Admin Three" },
-  ];
+  // Fetch real admins from backend when component loads
+  useEffect(() => {
+    const fetchAdmins = async () => {
+      setLoadingAdmins(true);
+      try {
+        const res = await fetch(`${API_BASE}/admins`);
+        const data = await res.json();
+        setAdmins(data);  // [{ id: "...", full_name: "..." }, ...]
+      } catch (err) {
+        console.error("Could not load admin list:", err);
+      }
+      setLoadingAdmins(false);
+    };
+
+    fetchAdmins();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setFormData((prev) => ({
       ...prev,
       [name]: value,
-      ...(name === "role" && value !== "Volunteer"
-        ? { adminId: "" }
-        : {}),
+      ...(name === "role" && value !== "volunteer" ? { adminId: "" } : {}),
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError("");
+    setLoading(true);
 
-    console.log("Signup Data Submitted:", formData);
+    try {
+      // Step 1: Create user account in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+      });
 
-    // 🔴 Change this later when backend connected
-    const isApproved = true;
+      if (authError) {
+        setSubmitError(authError.message);
+        setLoading(false);
+        return;
+      }
 
-    let message = "";
+      const userId = authData.user.id;
 
-    if (formData.role === "Admin") {
-      message = isApproved
-        ? "Your Admin account has been approved successfully!"
-        : "Waiting for Owner's approval.";
+      // Step 2: Save profile info to our backend
+      const profileRes = await fetch(`${API_BASE}/register-profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          full_name: formData.name,
+          phone: null,
+          role: formData.role.toLowerCase(),       // backend expects lowercase: 'admin', 'volunteer'
+          assigned_admin_id: formData.adminId || null,
+        }),
+      });
+
+      const profileData = await profileRes.json();
+
+      if (!profileRes.ok) {
+        setSubmitError(profileData.detail || "Could not save your profile. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Show success modal with correct message
+      let message = "";
+      if (formData.role === "Admin" || formData.role === "admin") {
+        message = "Account created! Waiting for Owner's approval before you can log in.";
+      } else if (formData.role === "Volunteer" || formData.role === "volunteer") {
+        message = "Account created! Waiting for your Admin's approval before you can log in.";
+      }
+
+      setIsSuccess(true);
+      setModalMessage(message);
+      setShowModal(true);
+
+    } catch (err) {
+      setSubmitError("Server error. Please make sure the backend is running.");
     }
 
-    if (formData.role === "Volunteer") {
-      message = isApproved
-        ? "Your Volunteer account has been approved successfully!"
-        : "Waiting for Admin's approval.";
-    }
-
-    setModalMessage(message);
-    setShowModal(true);
+    setLoading(false);
   };
 
   return (
@@ -66,10 +114,7 @@ const Signup = () => {
       <div className="auth-card">
 
         {/* Back Button */}
-        <button
-          className="back-btn"
-          onClick={() => navigate("/")}
-        >
+        <button className="back-btn" onClick={() => navigate("/")}>
           ← Back
         </button>
 
@@ -133,13 +178,13 @@ const Signup = () => {
               required
             >
               <option value="">Select role</option>
-              <option value="Admin">Admin</option>
-              <option value="Volunteer">Volunteer</option>
+              <option value="admin">Admin</option>
+              <option value="volunteer">Volunteer</option>
             </select>
           </div>
 
-          {/* Volunteer → Select Admin */}
-          {formData.role === "Volunteer" && (
+          {/* Volunteer → Select Admin (real data from backend) */}
+          {formData.role === "volunteer" && (
             <div className="input-group">
               <label>Select Your Admin</label>
               <select
@@ -149,18 +194,25 @@ const Signup = () => {
                 onChange={handleChange}
                 required
               >
-                <option value="">Select admin</option>
+                <option value="">
+                  {loadingAdmins ? "Loading admins..." : "Select admin"}
+                </option>
                 {admins.map((admin) => (
                   <option key={admin.id} value={admin.id}>
-                    {admin.name}
+                    {admin.full_name}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          <button type="submit" className="auth-btn">
-            Continue
+          {/* Error message */}
+          {submitError && (
+            <p style={{ color: "red", fontSize: "14px" }}>{submitError}</p>
+          )}
+
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? "Creating account..." : "Continue"}
           </button>
 
         </form>
@@ -172,15 +224,11 @@ const Signup = () => {
           <div className="modal-box">
             <h3>Signup Status</h3>
             <p>{modalMessage}</p>
-
             <button
               className="auth-btn"
               onClick={() => {
                 setShowModal(false);
-
-                if (modalMessage.includes("approved")) {
-                  navigate("/");
-                }
+                if (isSuccess) navigate("/");
               }}
             >
               OK

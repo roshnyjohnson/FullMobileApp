@@ -1,36 +1,84 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Dashboard.css";
+import { API_BASE } from "../api";
+import { supabase } from "../supabaseClient";
 
 const OwnerDashboard = () => {
   const navigate = useNavigate();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  
-  // Data State
-  const [pendingRequests, setPendingRequests] = useState([
-    { id: 1, name: "Rahul Sharma", email: "rahul@admin.com", date: "2026-03-01" },
-    { id: 2, name: "Anita Varma", email: "anita@admin.com", date: "2026-03-02" },
-  ]);
 
-  const [approvedAdmins, setApprovedAdmins] = useState([
-    { id: 101, name: "Vikram Singh", email: "vikram@admin.com", status: "Active" },
-  ]);
+  // Read logged-in user from localStorage (set during login)
+  const ownerId = localStorage.getItem("user_id");
+
+  // Data State
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [approvedAdmins, setApprovedAdmins] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch pending and approved admins from backend on load
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!ownerId) return;
+      setLoading(true);
+      try {
+        // Fetch pending admins (Owner sees unapproved admins)
+        const pendingRes = await fetch(
+          `${API_BASE}/pending-users?approver_id=${ownerId}&approver_role=owner`
+        );
+        const pendingData = await pendingRes.json();
+
+        // Fetch approved admins
+        const approvedRes = await fetch(`${API_BASE}/admins`);
+        const approvedData = await approvedRes.json();
+
+        setPendingRequests(pendingData);
+        setApprovedAdmins(approvedData);
+      } catch (err) {
+        console.error("Could not load owner dashboard data:", err);
+      }
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [ownerId]);
 
   const togglePanel = () => setIsPanelOpen(!isPanelOpen);
 
-  const handleLogout = () => {
-    // Clear auth data here if needed
-    navigate("/login");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.clear();
+    navigate("/");
   };
 
-  const handleApprove = (admin) => {
-    setPendingRequests(pendingRequests.filter(item => item.id !== admin.id));
-    setApprovedAdmins([...approvedAdmins, { ...admin, status: "Active" }]);
+  const handleApprove = async (admin) => {
+    try {
+      const res = await fetch(`${API_BASE}/approve-user`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          approver_id: ownerId,
+          user_id: admin.id,
+        }),
+      });
+
+      if (res.ok) {
+        // Move from pending to approved in UI
+        setPendingRequests(pendingRequests.filter(item => item.id !== admin.id));
+        setApprovedAdmins([...approvedAdmins, { id: admin.id, full_name: admin.full_name }]);
+        alert(`${admin.full_name} has been approved!`);
+      } else {
+        const err = await res.json();
+        alert(`Approval failed: ${err.detail}`);
+      }
+    } catch (err) {
+      alert("Server error. Could not approve admin.");
+    }
   };
 
   return (
     <div className="dashboard-container">
-      
+
       {/* --- SIDE PANEL (HAMBURGER MENU) --- */}
       <div className={`side-panel ${isPanelOpen ? "open" : ""}`}>
         <button className="close-btn" onClick={togglePanel}>×</button>
@@ -62,26 +110,32 @@ const OwnerDashboard = () => {
             <span className="badge">{pendingRequests.length}</span>
           </div>
           <div className="glass-table-container">
-            <table className="glass-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingRequests.map((admin) => (
-                  <tr key={admin.id}>
-                    <td>{admin.name}</td>
-                    <td>{admin.email}</td>
-                    <td>
-                      <button className="approve-btn" onClick={() => handleApprove(admin)}>Approve</button>
-                    </td>
+            {loading ? (
+              <p style={{ padding: "20px" }}>Loading pending requests...</p>
+            ) : pendingRequests.length === 0 ? (
+              <p style={{ padding: "20px" }}>No pending admin requests.</p>
+            ) : (
+              <table className="glass-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pendingRequests.map((admin) => (
+                    <tr key={admin.id}>
+                      <td>{admin.full_name}</td>
+                      <td>{admin.role}</td>
+                      <td>
+                        <button className="approve-btn" onClick={() => handleApprove(admin)}>Approve</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
 
@@ -89,26 +143,31 @@ const OwnerDashboard = () => {
         <section className="dashboard-section" style={{ marginTop: "30px" }}>
           <div className="section-header">
             <h2>Approved Admins</h2>
+            <span className="badge">{approvedAdmins.length}</span>
           </div>
           <div className="glass-table-container">
-            <table className="glass-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {approvedAdmins.map((admin) => (
-                  <tr key={admin.id}>
-                    <td>{admin.name}</td>
-                    <td>{admin.email}</td>
-                    <td><span className="status-pill">{admin.status}</span></td>
+            {loading ? (
+              <p style={{ padding: "20px" }}>Loading approved admins...</p>
+            ) : approvedAdmins.length === 0 ? (
+              <p style={{ padding: "20px" }}>No approved admins yet.</p>
+            ) : (
+              <table className="glass-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {approvedAdmins.map((admin) => (
+                    <tr key={admin.id}>
+                      <td>{admin.full_name}</td>
+                      <td><span className="status-pill">Active</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
       </main>

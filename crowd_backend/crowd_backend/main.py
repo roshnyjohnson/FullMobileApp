@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, validator
 from datetime import datetime
 from typing import Optional
@@ -10,11 +11,24 @@ app = FastAPI(title="CrowdSafety API", version="1.0.0")
 # Allow the frontend team to connect from their local dev server
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten this in production
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global exception handler — ensures CORS headers are always sent
+# even when an unexpected server error occurs
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Server error: {str(exc)}"},
+        headers={
+            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+            "Access-Control-Allow-Credentials": "true",
+        },
+    )
 
 # ==========================================
 # MODELS
@@ -105,8 +119,8 @@ def register_profile(data: RegisterProfileRequest):
     if data.role not in ["owner", "admin", "volunteer"]:
         raise HTTPException(status_code=400, detail="Invalid role. Must be owner, admin, or volunteer")
 
-    # Save to the profiles table
-    supabase.table("profiles").insert({
+    # Save to the profiles table using upsert to avoid duplicate key errors during testing
+    supabase.table("profiles").upsert({
         "id": data.user_id,
         "full_name": data.full_name,
         "phone": data.phone,
