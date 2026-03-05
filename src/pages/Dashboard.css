@@ -1,0 +1,222 @@
+/* =========================
+   Modern Light Dashboard
+========================= */
+
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+
+  --danger: #ef4444;
+
+  --bg-light: #f1f5f9;
+  --card-bg: #ffffff;
+  --border-light: #e2e8f0;
+
+  --text-dark: #0f172a;
+  --text-muted: #64748b;
+}
+
+/* ===== Layout ===== */
+
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+  background: linear-gradient(to bottom right, #f8fafc, #eef2f7);
+  color: var(--text-dark);
+  overflow-x: hidden;
+}
+
+/* ===== Header ===== */
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 30px auto;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dashboard-header h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+/* ===== Main Content ===== */
+
+.main-content {
+  flex: 1;
+  padding: 50px 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ===== Cards / Sections ===== */
+
+.dashboard-section {
+  width: 100%;
+  max-width: 1200px;
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 40px;
+  margin-bottom: 30px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  transition: 0.3s ease;
+}
+
+.dashboard-section:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+}
+
+/* ===== Table ===== */
+
+.glass-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.glass-table th {
+  padding: 18px 20px;
+  color: var(--primary);
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--border-light);
+  text-align: left;
+}
+
+.glass-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  transition: background 0.2s ease;
+}
+
+.glass-table tr:hover td {
+  background: #f8fafc;
+}
+
+/* ===== Sidebar ===== */
+
+.side-panel {
+  position: fixed;
+  left: -280px;
+  top: 0;
+  width: 280px;
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid var(--border-light);
+  z-index: 2000;
+  transition: left 0.3s ease;
+  padding: 40px 25px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 5px 0 30px rgba(0, 0, 0, 0.05);
+}
+
+.side-panel.open {
+  left: 0;
+}
+
+/* Sidebar top items */
+.side-panel h3 {
+  margin-bottom: 30px;
+  font-weight: 600;
+}
+
+.side-panel p {
+  margin: 15px 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: 0.2s;
+}
+
+.side-panel p:hover {
+  color: var(--primary);
+  transform: translateX(5px);
+}
+
+/* ===== Toggle Button ===== */
+
+.menu-toggle-btn {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 2500;
+  font-size: 18px;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.2);
+  transition: 0.3s ease;
+}
+
+.menu-toggle-btn:hover {
+  background: var(--primary-hover);
+  transform: scale(1.05);
+}
+
+/* ===== Approve Button ===== */
+
+.approve-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.approve-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+/* ===== Logout Buttons ===== */
+
+.side-logout-btn {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.side-logout-btn:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.logout-header-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-light);
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.logout-header-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.05);
+}

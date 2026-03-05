@@ -1,26 +1,57 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "../../components/Auth/Auth.css";
 import crowdImage from "../../assets/loginImage.jpg";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    console.log(email, password);
+
+    try {
+      const response = await fetch("http://localhost:8000/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrorMessage(data.detail || "Login failed");
+        return;
+      }
+
+      const { role, status, token } = data;
+
+      if (status !== "approved") {
+        setErrorMessage("Your account is not approved yet.");
+        return;
+      }
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("role", role);
+
+      if (role === "Admin") navigate("/admin-dashboard");
+      else if (role === "Volunteer") navigate("/volunteer-dashboard");
+      else if (role === "Owner") navigate("/owner-dashboard");
+
+    } catch (err) {
+      setErrorMessage("Server error. Try again.");
+    }
   };
 
   return (
     <div className="login-container">
-      
-      {/* LEFT SIDE IMAGE */}
+
       <div className="login-left">
         <img src={crowdImage} alt="Crowd" />
       </div>
 
-      {/* RIGHT SIDE FORM */}
       <div className="login-right">
         <div className="login-card">
 
@@ -30,7 +61,7 @@ function Login() {
           </p>
 
           <form onSubmit={handleLogin}>
-            <label>User Name</label>
+            <label>Email</label>
             <input
               type="email"
               placeholder="Enter your email"
@@ -46,15 +77,18 @@ function Login() {
               required
             />
 
-            <div className="remember">
-              <input type="checkbox" />
-              <span>Remember me</span>
-            </div>
-
             <button type="submit">Login</button>
           </form>
 
-          <p className="forgot">Forgot Password?</p>
+          {errorMessage && (
+            <p style={{ color: "red", marginTop: "10px" }}>
+              {errorMessage}
+            </p>
+          )}
+
+          <Link to="/forgot-password" className="forgot">
+            Forgot Password?
+          </Link>
 
           <p className="signup-text">
             Don’t have an Account?{" "}
