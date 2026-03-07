@@ -1,42 +1,64 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import "./VolunteerDashboard.css";
+import { API_BASE } from "../api";
+import { supabase } from "../supabaseClient";
 
 function VolunteerDashboard() {
-  const [deployments, setDeployments] = useState([
-    {
-      id: 1,
-      zone: "Zone A - Coastal Region",
-      date: "02 March 2026",
-      status: "Pending",
-    },
-    {
-      id: 2,
-      zone: "Zone B - Hill Area",
-      date: "01 March 2026",
-      status: "Pending",
-    },
-  ]);
+  const navigate = useNavigate();
+  const volunteerId = localStorage.getItem("user_id");
 
-  const notifications = [
-    {
-      id: 1,
-      title: "Flood Alert",
-      message: "Heavy rainfall expected in Zone A.",
-      time: "10 mins ago",
-    },
-    {
-      id: 2,
-      title: "High Wind Warning",
-      message: "Strong winds predicted in Zone C.",
-      time: "30 mins ago",
-    },
-  ];
+  const [deployments, setDeployments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleResponse = (id, response) => {
-    const updated = deployments.map((item) =>
-      item.id === id ? { ...item, status: response } : item
-    );
-    setDeployments(updated);
+  // Fetch volunteer's own deployments
+  const fetchDeployments = async () => {
+    if (!volunteerId) return;
+    try {
+      const res = await fetch(`${API_BASE}/my-deployments/${volunteerId}`);
+      const data = await res.json();
+      setDeployments(Array.isArray(data) ? data : []);
+    } catch {
+      console.error("Could not load deployments");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchDeployments();
+    const interval = setInterval(fetchDeployments, 15000);
+    return () => clearInterval(interval);
+  }, [volunteerId]);
+
+  // Accept or Reject a deployment invite
+  const handleResponse = async (deploymentId, response) => {
+    try {
+      const res = await fetch(`${API_BASE}/respond-deployment`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deployment_id: deploymentId,
+          volunteer_id: volunteerId,
+          response: response
+        })
+      });
+
+      if (res.ok) {
+        alert(response === "accepted" ? "Deployment accepted!" : "Deployment rejected. Another volunteer will be assigned.");
+        fetchDeployments();
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Failed to respond");
+      }
+    } catch {
+      alert("Network error");
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.clear();
+    navigate("/");
   };
 
   return (
@@ -53,7 +75,7 @@ function VolunteerDashboard() {
           </ul>
         </div>
 
-        <button className="logout-btn">Logout</button>
+        <button className="logout-btn" onClick={handleLogout}>Logout</button>
       </aside>
 
       {/* Main */}
@@ -61,66 +83,64 @@ function VolunteerDashboard() {
 
         {/* Topbar */}
         <div className="topbar">
-          <h1>Dashboard</h1>
-
-          <div className="notification-icon">
-            🔔
-            <span className="badge">{notifications.length}</span>
-          </div>
+          <h1>My Deployments</h1>
         </div>
-
-        {/* Notifications */}
-        <section className="notifications">
-          <h3>Recent Alerts</h3>
-          {notifications.map((note) => (
-            <div key={note.id} className="notification-card">
-              <div>
-                <strong>{note.title}</strong>
-                <p>{note.message}</p>
-              </div>
-              <span className="time">{note.time}</span>
-            </div>
-          ))}
-        </section>
 
         {/* Deployments */}
         <section className="deployments">
-          <h3>Deployment Requests</h3>
-          {deployments.map((deploy) => (
-            <div key={deploy.id} className="deployment-card">
-              <div className="deployment-info">
-                <h4>{deploy.zone}</h4>
-                <p>Date: {deploy.date}</p>
-              </div>
+          <h3>Deployment Invites</h3>
 
-              <div className="deployment-action">
-                <span className={`status ${deploy.status.toLowerCase()}`}>
-                  {deploy.status}
-                </span>
-
-                {deploy.status === "Pending" && (
-                  <>
-                    <button
-                      className="accept-btn"
-                      onClick={() =>
-                        handleResponse(deploy.id, "Accepted")
-                      }
-                    >
-                      Accept
-                    </button>
-                    <button
-                      className="reject-btn"
-                      onClick={() =>
-                        handleResponse(deploy.id, "Rejected")
-                      }
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-              </div>
+          {loading ? (
+            <div className="notification-card">
+              <p>Loading your deployment invites...</p>
             </div>
-          ))}
+          ) : deployments.length === 0 ? (
+            <div className="notification-card">
+              <p>No deployment invites yet. You will be auto-assigned 24 hours before an event.</p>
+            </div>
+          ) : (
+            deployments.map((deploy) => (
+              <div key={deploy.deployment_id} className="deployment-card">
+                <div className="deployment-info">
+                  <h4>{deploy.events?.event_name || "Event"}</h4>
+                  <p>Zone: {deploy.zones?.zone_name || "General Backup (Floating)"}</p>
+                  <p>Location: {deploy.events?.location || "—"}</p>
+                  <p>
+                    When: {deploy.events?.start_datetime
+                      ? new Date(deploy.events.start_datetime).toLocaleString()
+                      : "—"}
+                    {" → "}
+                    {deploy.events?.end_datetime
+                      ? new Date(deploy.events.end_datetime).toLocaleString()
+                      : "—"}
+                  </p>
+                </div>
+
+                <div className="deployment-action">
+                  <span className={`status ${deploy.deployment_status.toLowerCase()}`}>
+                    {deploy.deployment_status}
+                  </span>
+
+                  {deploy.deployment_status === "pending" && (
+                    <>
+                      <button
+                        className="accept-btn"
+                        onClick={() => handleResponse(deploy.deployment_id, "accepted")}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        className="reject-btn"
+                        onClick={() => handleResponse(deploy.deployment_id, "rejected")}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </section>
 
       </main>

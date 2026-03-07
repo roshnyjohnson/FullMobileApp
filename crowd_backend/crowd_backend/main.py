@@ -2,16 +2,61 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, validator
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional
+from contextlib import asynccontextmanager
 from .supabase_config import supabase
 
-app = FastAPI(title="CrowdSafety API", version="1.0.0")
+# ---------- Background Scheduler ----------
+from apscheduler.schedulers.background import BackgroundScheduler
+
+def _auto_deploy_check():
+    """Runs every 15 minutes. Finds events starting in 23-24 hours and auto-deploys volunteers."""
+    try:
+        now = datetime.now(timezone.utc)
+        window_start = now + timedelta(hours=23)
+        window_end   = now + timedelta(hours=24)
+
+        events_res = supabase.table("events").select("event_id, start_datetime").execute()
+        for ev in (events_res.data or []):
+            start = datetime.fromisoformat(ev["start_datetime"])
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            if window_start <= start <= window_end:
+                # Check if already deployed
+                existing = (
+                    supabase.table("volunteer_deployments")
+                    .select("deployment_id")
+                    .eq("event_id", ev["event_id"])
+                    .limit(1)
+                    .execute()
+                )
+                if not existing.data:
+                    try:
+                        _run_deploy_logic(ev["event_id"])
+                        print(f"[AUTO-DEPLOY] Deployed volunteers for event {ev['event_id']}")
+                    except Exception as e:
+                        print(f"[AUTO-DEPLOY] Failed for event {ev['event_id']}: {e}")
+    except Exception as e:
+        print(f"[AUTO-DEPLOY] Scheduler error: {e}")
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(_auto_deploy_check, "interval", minutes=15)
+
+@asynccontextmanager
+async def lifespan(app):
+    scheduler.start()
+    print("[SCHEDULER] Auto-deploy checker started (runs every 15 min)")
+    yield
+    scheduler.shutdown()
+    print("[SCHEDULER] Shut down")
+
+app = FastAPI(title="CrowdSafety API", version="1.0.0", lifespan=lifespan)
 
 # Allow the frontend team to connect from their local dev server
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -728,14 +773,16 @@ def deploy_volunteers(event_id: int):
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    # --- Step 2: Check 48-hour rule ---
+    # --- Step 2: Check 24-hour rule ---
     now = datetime.now(timezone.utc)
     start = datetime.fromisoformat(event["start_datetime"])
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
     hours_until_event = (start - now).total_seconds() / 3600
-    if hours_until_event < 48:
+    if hours_until_event < 24:
         raise HTTPException(
             status_code=400,
-            detail=f"Deployment list can only be published at least 48 hours before the event. Currently {hours_until_event:.1f} hrs away."
+            detail=f"Deployment list can only be published at least 24 hours before the event. Currently {hours_until_event:.1f} hrs away."
         )
 
     # --- Step 3: Fetch all zones for this event ---
@@ -844,7 +891,7 @@ def deploy_volunteers(event_id: int):
                 "event_id": event_id,
                 "volunteer_id": volunteers[v_index]["id"],
                 "zone_id": zn["zone"]["zone_id"],
-                "deployment_status": "assigned",
+                "deployment_status": "pending",
                 "published_at": published_now
             })
             v_index += 1
@@ -918,6 +965,247 @@ def reassign_volunteer(req: ReassignVolunteerRequest):
         "volunteer_id": req.volunteer_id,
         "new_zone_id": req.new_zone_id
     }
+
+
+@app.get("/test-deploy/{event_id}")
+def test_deploy(event_id: int):
+    """Manual endpoint to force trigger the deployment for testing purposes."""
+    _run_deploy_logic(event_id)
+    return {"message": f"Successfully forced deployment for event {event_id}"}
+
+
+# --- Helper used by both the endpoint and the auto-scheduler ---
+def _run_deploy_logic(event_id: int):
+    """Core deployment logic extracted so it can be called from scheduler too."""
+    from datetime import timezone as tz
+
+    event_res = supabase.table("events").select("*").eq("event_id", event_id).single().execute()
+    event = event_res.data
+    if not event:
+        raise Exception(f"Event {event_id} not found")
+
+    now = datetime.now(tz.utc)
+    start = datetime.fromisoformat(event["start_datetime"])
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=tz.utc)
+
+    zones_res = supabase.table("zones").select("*").eq("event_id", event_id).execute()
+    zones = zones_res.data
+    if not zones:
+        raise Exception("No zones for this event")
+
+    zone_needs = []
+    total_needed = 0
+    for zone in zones:
+        area = zone["area_sqm"]
+        if zone["zone_type"] == "portal":
+            needed = max(MIN_VOLUNTEERS_PORTAL, round(area / SQMT_PER_VOLUNTEER_PORTAL))
+        else:
+            needed = max(1, round(area / SQMT_PER_VOLUNTEER_MAIN))
+        zone_needs.append({"zone": zone, "needed": needed})
+        total_needed += needed
+
+    general_count = max(1, round(total_needed * GENERAL_BUFFER_PERCENT))
+    grand_total = total_needed + general_count
+
+    all_vol_res = (
+        supabase.table("profiles")
+        .select("id, full_name")
+        .eq("role", "volunteer")
+        .eq("is_approved", True)
+        .eq("assigned_admin_id", event["admin_id"])
+        .execute()
+    )
+    all_volunteers = all_vol_res.data or []
+
+    count_res = supabase.table("volunteer_deployments").select("volunteer_id").execute()
+    count_map = {}
+    for row in (count_res.data or []):
+        vid = row["volunteer_id"]
+        count_map[vid] = count_map.get(vid, 0) + 1
+
+    volunteers = sorted(
+        all_volunteers,
+        key=lambda v: count_map.get(v["id"], 0)
+    )
+
+    if len(volunteers) < grand_total:
+        raise Exception(f"Need {grand_total} volunteers but only {len(volunteers)} available")
+
+    deployments = []
+    v_index = 0
+    published_now = now.isoformat()
+
+    for zn in zone_needs:
+        for _ in range(zn["needed"]):
+            deployments.append({
+                "event_id": event_id,
+                "volunteer_id": volunteers[v_index]["id"],
+                "zone_id": zn["zone"]["zone_id"],
+                "deployment_status": "pending",
+                "published_at": published_now
+            })
+            v_index += 1
+
+    for _ in range(general_count):
+        deployments.append({
+            "event_id": event_id,
+            "volunteer_id": volunteers[v_index]["id"],
+            "zone_id": None,
+            "deployment_status": "pending",
+            "published_at": published_now
+        })
+        v_index += 1
+
+    supabase.table("volunteer_deployments").insert(deployments).execute()
+
+
+# ==========================================
+# VOLUNTEER ACCEPT / REJECT / VIEW APIs
+# ==========================================
+
+@app.get("/my-deployments/{volunteer_id}")
+def get_my_deployments(volunteer_id: str):
+    """
+    Volunteer sees only their own deployment invites.
+    Returns event name, zone name, status, and shift times.
+    """
+    response = (
+        supabase.table("volunteer_deployments")
+        .select("*, events(event_name, start_datetime, end_datetime, location), zones(zone_name, zone_type)")
+        .eq("volunteer_id", volunteer_id)
+        .in_("deployment_status", ["pending", "accepted"])
+        .order("published_at", desc=True)
+        .execute()
+    )
+    return response.data or []
+
+
+class RespondDeploymentRequest(BaseModel):
+    deployment_id: int
+    volunteer_id: str
+    response: str  # 'accepted' or 'rejected'
+
+
+@app.put("/respond-deployment")
+def respond_deployment(req: RespondDeploymentRequest):
+    """
+    Volunteer accepts or rejects a deployment invite.
+    On rejection: auto-finds the next available volunteer under the same admin
+    with fewest past deployments and creates a new 'pending' assignment.
+    """
+    if req.response not in ["accepted", "rejected"]:
+        raise HTTPException(status_code=400, detail="Response must be 'accepted' or 'rejected'")
+
+    # Get the deployment row
+    dep_res = (
+        supabase.table("volunteer_deployments")
+        .select("*, events(admin_id, start_datetime, end_datetime)")
+        .eq("deployment_id", req.deployment_id)
+        .eq("volunteer_id", req.volunteer_id)
+        .single()
+        .execute()
+    )
+    dep = dep_res.data
+    if not dep:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+
+    if dep["deployment_status"] != "pending":
+        raise HTTPException(status_code=400, detail="Can only respond to pending deployments")
+
+    # Update the status
+    supabase.table("volunteer_deployments").update({
+        "deployment_status": req.response
+    }).eq("deployment_id", req.deployment_id).execute()
+
+    result = {"message": f"Deployment {req.response}", "deployment_id": req.deployment_id}
+
+    # --- Auto-reassign on rejection ---
+    if req.response == "rejected":
+        admin_id = dep["events"]["admin_id"]
+        event_id = dep["event_id"]
+        zone_id = dep.get("zone_id")
+
+        # Get all volunteers already assigned to this event
+        already_assigned_res = (
+            supabase.table("volunteer_deployments")
+            .select("volunteer_id")
+            .eq("event_id", event_id)
+            .execute()
+        )
+        already_ids = set(r["volunteer_id"] for r in (already_assigned_res.data or []))
+
+        # Get all approved volunteers under this admin
+        all_vol_res = (
+            supabase.table("profiles")
+            .select("id, full_name")
+            .eq("role", "volunteer")
+            .eq("is_approved", True)
+            .eq("assigned_admin_id", admin_id)
+            .execute()
+        )
+
+        # Filter out those already in this event's deployment
+        available = [v for v in (all_vol_res.data or []) if v["id"] not in already_ids]
+
+        if available:
+            # Pick the one with fewest past deployments (fairness)
+            count_res = supabase.table("volunteer_deployments").select("volunteer_id").execute()
+            count_map = {}
+            for row in (count_res.data or []):
+                vid = row["volunteer_id"]
+                count_map[vid] = count_map.get(vid, 0) + 1
+
+            available.sort(key=lambda v: count_map.get(v["id"], 0))
+            replacement = available[0]
+
+            # Create new pending deployment for the replacement
+            supabase.table("volunteer_deployments").insert({
+                "event_id": event_id,
+                "volunteer_id": replacement["id"],
+                "zone_id": zone_id,
+                "deployment_status": "pending",
+                "published_at": datetime.now(timezone.utc).isoformat()
+            }).execute()
+
+            result["replacement"] = {
+                "volunteer_name": replacement["full_name"],
+                "volunteer_id": replacement["id"]
+            }
+        else:
+            result["replacement"] = None
+            result["warning"] = "No available volunteer to replace. Admin should review."
+
+    return result
+
+
+@app.get("/admin-deployments/{admin_id}")
+def get_admin_deployments(admin_id: str):
+    """
+    Admin sees all deployments for their events (from 24 hours before onwards).
+    Shows volunteer name, zone, status for each assignment.
+    """
+    # Get all events belonging to this admin
+    events_res = (
+        supabase.table("events")
+        .select("event_id")
+        .eq("admin_id", admin_id)
+        .execute()
+    )
+    event_ids = [e["event_id"] for e in (events_res.data or [])]
+
+    if not event_ids:
+        return []
+
+    # Get all deployments for those events
+    response = (
+        supabase.table("volunteer_deployments")
+        .select("*, profiles(full_name, phone), zones(zone_name, zone_type), events(event_name, start_datetime)")
+        .in_("event_id", event_ids)
+        .order("published_at", desc=True)
+        .execute()
+    )
+    return response.data or []
 
 
 # ==========================================

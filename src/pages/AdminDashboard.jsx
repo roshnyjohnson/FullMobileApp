@@ -18,12 +18,19 @@ const AdminDashboard = () => {
 
   const [newEventName, setNewEventName] = useState("");
   const [newEventLocation, setNewEventLocation] = useState("");
+  const [newEventType, setNewEventType] = useState("");
+  const [newExpectedAttendance, setNewExpectedAttendance] = useState("");
+  const [newStartDatetime, setNewStartDatetime] = useState("");
+  const [newEndDatetime, setNewEndDatetime] = useState("");
 
   const [newZoneName, setNewZoneName] = useState("");
   const [newZoneType, setNewZoneType] = useState("");
-  const [newZoneCapacity, setNewZoneCapacity] = useState("");
-  const [newZoneDoors, setNewZoneDoors] = useState("");
-  const [newZoneCamera, setNewZoneCamera] = useState("");
+  const [newZoneLength, setNewZoneLength] = useState("");
+  const [newZoneWidth, setNewZoneWidth] = useState("");
+  const [newZoneSafeDensity, setNewZoneSafeDensity] = useState("2.5");
+  const [newZonePortalType, setNewZonePortalType] = useState("");
+  const [newZoneParentId, setNewZoneParentId] = useState("");
+  const [newZoneGateWidth, setNewZoneGateWidth] = useState("");
 
   /* ---------------- VOLUNTEER STATE ---------------- */
 
@@ -37,7 +44,7 @@ const AdminDashboard = () => {
       try {
         const res = await fetch(`${API_BASE}/events`);
         const data = await res.json();
-        setEvents(data);
+        setEvents(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Could not load events", err);
       }
@@ -53,9 +60,9 @@ const AdminDashboard = () => {
 
     const fetchZones = async () => {
       try {
-        const res = await fetch(`${API_BASE}/zones/${selectedEvent}`);
+        const res = await fetch(`${API_BASE}/events/${selectedEvent}/zones`);
         const data = await res.json();
-        setZones(data);
+        setZones(Array.isArray(data) ? data : []);
       } catch {
         console.error("Could not load zones");
       }
@@ -98,9 +105,13 @@ const AdminDashboard = () => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
+          admin_id: adminId,
           event_name: newEventName,
           location: newEventLocation,
-          created_by: adminId
+          event_type: newEventType,
+          expected_attendance: newExpectedAttendance,
+          start_datetime: newStartDatetime,
+          end_datetime: newEndDatetime
         })
       });
 
@@ -108,9 +119,13 @@ const AdminDashboard = () => {
 
       if (res.ok) {
         alert("Event created");
-        setEvents((prev) => [...prev, data]);
+        setEvents((prev) => [...(prev || []), data]);
         setNewEventName("");
         setNewEventLocation("");
+        setNewEventType("");
+        setNewExpectedAttendance("");
+        setNewStartDatetime("");
+        setNewEndDatetime("");
       }
     } catch {
       alert("Event creation failed");
@@ -132,9 +147,12 @@ const AdminDashboard = () => {
           event_id: selectedEvent,
           zone_name: newZoneName,
           zone_type: newZoneType,
-          max_capacity: newZoneCapacity,
-          num_doors: newZoneDoors,
-          camera_id: newZoneCamera
+          length_m: parseFloat(newZoneLength),
+          width_m: parseFloat(newZoneWidth),
+          safe_density_limit: parseFloat(newZoneSafeDensity) || 2.5,
+          portal_type: newZonePortalType || null,
+          parent_zone_id: newZoneParentId ? parseInt(newZoneParentId) : null,
+          gate_width: newZoneGateWidth ? parseFloat(newZoneGateWidth) : null
         })
       });
 
@@ -142,7 +160,14 @@ const AdminDashboard = () => {
 
       if (res.ok) {
         alert("Zone created");
-        setZones((prev) => [...prev, data]);
+        setZones((prev) => [...(prev || []), data]);
+        setNewZoneName("");
+        setNewZoneType("");
+        setNewZoneLength("");
+        setNewZoneWidth("");
+        setNewZonePortalType("");
+        setNewZoneParentId("");
+        setNewZoneGateWidth("");
       }
     } catch {
       alert("Zone creation failed");
@@ -258,13 +283,33 @@ const AdminDashboard = () => {
               setNewEventName={setNewEventName}
               newEventLocation={newEventLocation}
               setNewEventLocation={setNewEventLocation}
+              newEventType={newEventType}
+              setNewEventType={setNewEventType}
+              newExpectedAttendance={newExpectedAttendance}
+              setNewExpectedAttendance={setNewExpectedAttendance}
+              newStartDatetime={newStartDatetime}
+              setNewStartDatetime={setNewStartDatetime}
+              newEndDatetime={newEndDatetime}
+              setNewEndDatetime={setNewEndDatetime}
               createEvent={createEvent}
               createZone={createZone}
+              newZoneName={newZoneName}
               setNewZoneName={setNewZoneName}
+              newZoneType={newZoneType}
               setNewZoneType={setNewZoneType}
-              setNewZoneCapacity={setNewZoneCapacity}
-              setNewZoneDoors={setNewZoneDoors}
-              setNewZoneCamera={setNewZoneCamera}
+              newZoneLength={newZoneLength}
+              setNewZoneLength={setNewZoneLength}
+              newZoneWidth={newZoneWidth}
+              setNewZoneWidth={setNewZoneWidth}
+              newZoneSafeDensity={newZoneSafeDensity}
+              setNewZoneSafeDensity={setNewZoneSafeDensity}
+              newZonePortalType={newZonePortalType}
+              setNewZonePortalType={setNewZonePortalType}
+              newZoneParentId={newZoneParentId}
+              setNewZoneParentId={setNewZoneParentId}
+              newZoneGateWidth={newZoneGateWidth}
+              setNewZoneGateWidth={setNewZoneGateWidth}
+              zones={zones}
             />
           )}
 
@@ -273,6 +318,7 @@ const AdminDashboard = () => {
               pendingApprovals={pendingApprovals}
               loadingApprovals={loadingApprovals}
               approveVolunteer={approveVolunteer}
+              adminId={adminId}
             />
           )}
 
@@ -303,13 +349,33 @@ const EventControlTab = ({
   setNewEventName,
   newEventLocation,
   setNewEventLocation,
+  newEventType,
+  setNewEventType,
+  newExpectedAttendance,
+  setNewExpectedAttendance,
+  newStartDatetime,
+  setNewStartDatetime,
+  newEndDatetime,
+  setNewEndDatetime,
   createEvent,
   createZone,
+  newZoneName,
   setNewZoneName,
+  newZoneType,
   setNewZoneType,
-  setNewZoneCapacity,
-  setNewZoneDoors,
-  setNewZoneCamera
+  newZoneLength,
+  setNewZoneLength,
+  newZoneWidth,
+  setNewZoneWidth,
+  newZoneSafeDensity,
+  setNewZoneSafeDensity,
+  newZonePortalType,
+  setNewZonePortalType,
+  newZoneParentId,
+  setNewZoneParentId,
+  newZoneGateWidth,
+  setNewZoneGateWidth,
+  zones
 }) => {
 
   return (
@@ -336,6 +402,33 @@ const EventControlTab = ({
             onChange={(e) => setNewEventLocation(e.target.value)}
           />
 
+          <input
+            placeholder="Event Type (e.g. concert, sports)"
+            value={newEventType}
+            onChange={(e) => setNewEventType(e.target.value)}
+          />
+          
+          <input
+            placeholder="Expected Attendance"
+            type="number"
+            value={newExpectedAttendance}
+            onChange={(e) => setNewExpectedAttendance(e.target.value)}
+          />
+
+          <input
+            placeholder="Start Date and Time"
+            type="datetime-local"
+            value={newStartDatetime}
+            onChange={(e) => setNewStartDatetime(e.target.value)}
+          />
+
+          <input
+            placeholder="End Date and Time"
+            type="datetime-local"
+            value={newEndDatetime}
+            onChange={(e) => setNewEndDatetime(e.target.value)}
+          />
+
           <button className="btn-primary" onClick={createEvent}>
             Create Event
           </button>
@@ -357,7 +450,7 @@ const EventControlTab = ({
         >
           <option value="">Select Event</option>
 
-          {events.map((event) => (
+          {(events || []).map((event) => (
             <option key={event.event_id} value={event.event_id}>
               {event.event_name}
             </option>
@@ -377,15 +470,39 @@ const EventControlTab = ({
 
           <div className="zone-form-grid">
 
-            <input placeholder="Zone Name" onChange={(e)=>setNewZoneName(e.target.value)} />
+            <input placeholder="Zone Name" value={newZoneName} onChange={(e)=>setNewZoneName(e.target.value)} />
+            
+            <select className="styled-select" value={newZoneType} onChange={(e)=>setNewZoneType(e.target.value)}>
+              <option value="">Select Zone Type</option>
+              <option value="main">Main Zone</option>
+              <option value="portal">Portal Gate</option>
+            </select>
 
-            <input placeholder="Zone Type (Entry / Stage / Exit)" onChange={(e)=>setNewZoneType(e.target.value)} />
+            <input placeholder="Length in meters" type="number" value={newZoneLength} onChange={(e)=>setNewZoneLength(e.target.value)} />
+            <input placeholder="Width in meters" type="number" value={newZoneWidth} onChange={(e)=>setNewZoneWidth(e.target.value)} />
+            <input placeholder="Safe Density Limit (e.g. 2.5)" type="number" step="0.1" value={newZoneSafeDensity} onChange={(e)=>setNewZoneSafeDensity(e.target.value)} />
+            
+            {newZoneType === "portal" && (
+              <>
+                <select className="styled-select" value={newZonePortalType} onChange={(e)=>setNewZonePortalType(e.target.value)}>
+                  <option value="">Portal Configuration</option>
+                  <option value="entry">Entry Only</option>
+                  <option value="exit">Exit Only</option>
+                  <option value="both">Both (Entry & Exit)</option>
+                </select>
 
-            <input placeholder="Max Capacity" onChange={(e)=>setNewZoneCapacity(e.target.value)} />
+                <select className="styled-select" value={newZoneParentId} onChange={(e)=>setNewZoneParentId(e.target.value)}>
+                  <option value="">Select Parent Main Zone</option>
+                  {(zones || []).filter(z => z.zone_type === "main").map(mz => (
+                    <option key={mz.zone_id} value={mz.zone_id}>
+                      {mz.zone_name} (ID: {mz.zone_id})
+                    </option>
+                  ))}
+                </select>
 
-            <input placeholder="Number of Doors" onChange={(e)=>setNewZoneDoors(e.target.value)} />
-
-            <input placeholder="Camera ID" onChange={(e)=>setNewZoneCamera(e.target.value)} />
+                <input placeholder="Gate Width in meters" type="number" value={newZoneGateWidth} onChange={(e)=>setNewZoneGateWidth(e.target.value)} />
+              </>
+            )}
 
           </div>
 
@@ -402,7 +519,34 @@ const EventControlTab = ({
 
 /* ---------------- DEPLOYMENT TAB ---------------- */
 
-const DeploymentTab = ({ pendingApprovals, loadingApprovals, approveVolunteer }) => {
+const DeploymentTab = ({ pendingApprovals, loadingApprovals, approveVolunteer, adminId }) => {
+
+  const [deployments, setDeployments] = useState([]);
+  const [loadingDeploy, setLoadingDeploy] = useState(true);
+
+  useEffect(() => {
+    if (!adminId) return;
+    const fetchDeployments = async () => {
+      setLoadingDeploy(true);
+      try {
+        const res = await fetch(`${API_BASE}/admin-deployments/${adminId}`);
+        const data = await res.json();
+        setDeployments(Array.isArray(data) ? data : []);
+      } catch {
+        console.error("Could not load deployments");
+      }
+      setLoadingDeploy(false);
+    };
+    fetchDeployments();
+    const interval = setInterval(fetchDeployments, 15000);
+    return () => clearInterval(interval);
+  }, [adminId]);
+
+  const statusColor = (s) => {
+    if (s === "accepted") return "#22c55e";
+    if (s === "rejected") return "#ef4444";
+    return "#f59e0b";
+  };
 
   return (
     <div className="tab-view">
@@ -411,6 +555,7 @@ const DeploymentTab = ({ pendingApprovals, loadingApprovals, approveVolunteer })
         <h1 className="text-black">Volunteer Deployment</h1>
       </header>
 
+      {/* APPROVALS SECTION */}
       <section className="dashboard-card shadow-sm">
 
         <div className="section-header-row">
@@ -421,21 +566,11 @@ const DeploymentTab = ({ pendingApprovals, loadingApprovals, approveVolunteer })
         </div>
 
         {loadingApprovals ? (
-
-          <div className="empty-state">
-            Loading pending volunteers...
-          </div>
-
+          <div className="empty-state">Loading pending volunteers...</div>
         ) : pendingApprovals.length === 0 ? (
-
-          <div className="empty-state">
-            All registration requests cleared.
-          </div>
-
+          <div className="empty-state">All registration requests cleared.</div>
         ) : (
-
           <table className="modern-table">
-
             <thead>
               <tr>
                 <th>Name</th>
@@ -443,40 +578,99 @@ const DeploymentTab = ({ pendingApprovals, loadingApprovals, approveVolunteer })
                 <th>Action</th>
               </tr>
             </thead>
-
             <tbody>
-
               {pendingApprovals.map((v) => (
-
                 <tr key={v.id}>
-
                   <td>{v.full_name}</td>
-
+                  <td><span className="role-badge">{v.role}</span></td>
                   <td>
-                    <span className="role-badge">
-                      {v.role}
-                    </span>
-                  </td>
-
-                  <td>
-
-                    <button
-                      className="btn-approve-action"
-                      onClick={() => approveVolunteer(v)}
-                    >
+                    <button className="btn-approve-action" onClick={() => approveVolunteer(v)}>
                       Approve
                     </button>
-
                   </td>
-
                 </tr>
-
               ))}
-
             </tbody>
-
           </table>
+        )}
 
+      </section>
+
+      {/* DEPLOYMENT SCHEDULE SECTION */}
+      <section className="dashboard-card shadow-sm" style={{ marginTop: "24px" }}>
+
+        <div className="section-header-row">
+          <h3>Deployment Schedule</h3>
+          <span className="badge-count">
+            {deployments.length} Assignments
+          </span>
+        </div>
+
+        {loadingDeploy ? (
+          <div className="empty-state">Loading deployment schedule...</div>
+        ) : deployments.length === 0 ? (
+          <div className="empty-state">No deployments published yet. Volunteers are auto-assigned 24 hours before each event.</div>
+        ) : (
+          Object.values(
+            deployments.reduce((acc, d) => {
+              const eventId = d.event_id;
+              if (!acc[eventId]) {
+                acc[eventId] = {
+                  event: d.events,
+                  assignments: [],
+                };
+              }
+              acc[eventId].assignments.push(d);
+              return acc;
+            }, {})
+          ).map((group) => (
+            <div key={group.event.event_id} style={{ marginBottom: "2rem" }}>
+              <div style={{ 
+                background: "#f8fafc", 
+                padding: "12px 16px", 
+                borderRadius: "8px", 
+                borderLeft: "4px solid #3b82f6",
+                marginBottom: "12px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}>
+                <h4 style={{ margin: 0, color: "#1e293b" }}>
+                  {group.event.event_name}
+                </h4>
+                <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                  {new Date(group.event.start_datetime).toLocaleDateString("en-US", {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                  })}
+                </span>
+              </div>
+              <table className="modern-table">
+                <thead>
+                  <tr>
+                    <th>Volunteer</th>
+                    <th>Zone</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.assignments.map((d) => (
+                    <tr key={d.deployment_id}>
+                      <td>{d.profiles?.full_name || "Unknown"}</td>
+                      <td>{d.zones?.zone_name || "General Backup"}</td>
+                      <td>
+                        <span
+                          className="role-badge"
+                          style={{ backgroundColor: statusColor(d.deployment_status), color: "#fff" }}
+                        >
+                          {d.deployment_status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))
         )}
 
       </section>
