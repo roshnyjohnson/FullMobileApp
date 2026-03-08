@@ -320,6 +320,12 @@ def update_crowd(data: CrowdRequest):
     is_portal = zone["zone_type"] == "portal"
 
     # --- PHASE C: Save Reading to Cloud ---
+    # Auto-register device to satisfy foreign key constraint "crowd_readings_device_id_fkey"
+    try:
+        supabase.table("camera_devices").upsert({"device_id": data.device_id}).execute()
+    except Exception as e:
+        print(f"Device registration warning: {e}")
+
     supabase.table("crowd_readings").insert({
         "zone_id": data.zone_id,
         "device_id": data.device_id,
@@ -407,6 +413,7 @@ def update_crowd(data: CrowdRequest):
                 ),
                 "targeted_volunteer_zone_id": data.zone_id
             }).execute()
+
             alert_triggered = True
 
             # Auto-trigger exit strategy for the parent zone immediately
@@ -599,8 +606,6 @@ def update_crowd(data: CrowdRequest):
                     "targeted_volunteer_zone_id": data.zone_id
                 }).execute()
 
-
-
     return {
         "message": "Data saved to Supabase",
         "zone": zone["zone_name"],
@@ -608,6 +613,22 @@ def update_crowd(data: CrowdRequest):
         "density": round(density, 4),
         "alert_triggered": alert_triggered
     }
+
+
+@app.get("/all-crowd-data")
+def get_all_crowd_data(limit: int = 50):
+    """
+    Returns latest crowd readings from all zones.
+    Added to satisfy mobile app's GET request.
+    """
+    response = (
+        supabase.table("crowd_readings")
+        .select("*")
+        .order("timestamp", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return response.data
 
     
 
@@ -742,6 +763,45 @@ def get_events():
         .execute()
     )
     return response.data
+
+
+@app.get("/events/{event_id}/live-status")
+def get_event_live_status(event_id: int):
+    """
+    Get the latest crowd count and density for all zones in an event.
+    """
+    # 1. Fetch all zones for the event
+    zones_res = supabase.table("zones").select("*").eq("event_id", event_id).execute()
+    zones = zones_res.data or []
+    
+    if not zones:
+        return []
+
+    # 2. For each zone, fetch the latest reading
+    live_data = []
+    for zone in zones:
+        latest_reading = (
+            supabase.table("crowd_readings")
+            .select("people_count, density_value, timestamp")
+            .eq("zone_id", zone["zone_id"])
+            .order("timestamp", desc=True)
+            .limit(1)
+            .execute()
+        )
+        
+        reading = latest_reading.data[0] if latest_reading.data else None
+        
+        live_data.append({
+            "zone_id": zone["zone_id"],
+            "zone_name": zone["zone_name"],
+            "zone_type": zone["zone_type"],
+            "people_count": reading["people_count"] if reading else 0,
+            "density_value": reading["density_value"] if reading else 0.0,
+            "last_updated": reading["timestamp"] if reading else None,
+            "safe_limit": zone.get("safe_density_limit", 2.5)
+        })
+        
+    return live_data
 
 
 # ==========================================

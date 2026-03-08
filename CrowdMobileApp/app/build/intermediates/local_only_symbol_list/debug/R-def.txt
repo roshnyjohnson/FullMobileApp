@@ -12,12 +12,15 @@ drawable ic_launcher_background
 drawable ic_launcher_foreground
 id countCard
 id countText
+id eventSpinner
 id intervalText
 id overlayView
 id previewView
 id statusCard
 id statusText
 id toggleButton
+id zoneCard
+id zoneSpinner
 layout activity_main
 mipmap ic_launcher
 mipmap ic_launcher_round

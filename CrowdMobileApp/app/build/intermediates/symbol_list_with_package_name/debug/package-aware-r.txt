@@ -3268,6 +3268,7 @@ id end
 id endToStart
 id enterAlways
 id enterAlwaysCollapsed
+id eventSpinner
 id exitUntilCollapsed
 id expand_activities_button
 id expanded_menu
@@ -3595,6 +3596,8 @@ id wrap_content
 id wrap_content_constrained
 id x_left
 id x_right
+id zoneCard
+id zoneSpinner
 integer abc_config_activityDefaultDur
 integer abc_config_activityShortDur
 integer app_bar_elevation_anim_duration

@@ -8,6 +8,10 @@ import android.os.Looper
 import android.util.Log
 import android.util.Size
 import android.view.Surface
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Spinner
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -53,6 +57,10 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var countdownRunnable: Runnable? = null
 
+    private var events: List<Event> = emptyList()
+    private var zones: List<Zone> = emptyList()
+    private var currentZoneId: Int = 1
+
     // ── permission ──────────────────────────────────────────────────────
 
     private val permissionLauncher = registerForActivityResult(
@@ -91,6 +99,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.toggleButton.setOnClickListener { toggleDetection() }
+
+        setupSpinners()
+        fetchEvents()
 
         // Camera permission gate
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -220,23 +231,102 @@ class MainActivity : AppCompatActivity() {
     // ── API: Send crowd count to FastAPI server ──────────────────────────
 
     private fun sendCrowdCountToServer(count: Int) {
+        // Use the ID from the currently selected zone in the spinner
+        if (zones.isEmpty() || currentZoneId == -1) {
+            Log.w(TAG, "No zone selected. Counting, but not sending to server.")
+            return
+        }
+        
+        val zoneId = currentZoneId
+
         // Use Instant.now() to get a proper UTC ISO-8601 timestamp (e.g. "2026-02-18T09:39:43.123Z")
         // FastAPI's `datetime` type requires this format — LocalDateTime causes a 422 error
         val data = CrowdData(
-            zone_id = 1,
+            device_id = android.os.Build.MODEL,
+            zone_id = zoneId,
             crowd_count = count,
             timestamp = java.time.Instant.now().toString()
         )
-        RetrofitClient.apiService.postCrowdData(data).enqueue(object : Callback<Map<String, String>> {
-            override fun onResponse(
-                call: Call<Map<String, String>>,
-                response: Response<Map<String, String>>
-            ) {
-                Log.i(TAG, "Count sent to server: $count | Response: ${response.body()}")
-            }
+        RetrofitClient.apiService.postCrowdData(data)
+            .enqueue(object : Callback<Map<String, String>> {
+                override fun onResponse(
+                    call: Call<Map<String, String>>,
+                    response: Response<Map<String, String>>
+                ) {
+                    Log.i(TAG, "Count sent to server: $count | Response: ${response.body()}")
+                }
 
-            override fun onFailure(call: Call<Map<String, String>>, t: Throwable) {
-                Log.e(TAG, "POST failed: ${t.message}")
+                override fun onFailure(call: Call<Map<String, String>>, t: Throwable) {
+                    Log.e(TAG, "POST failed: ${t.message}")
+                }
+            })
+    }
+
+    // ── Dropdown Setup & Logic ──────────────────────────────────────────
+
+    private fun setupSpinners() {
+        binding.eventSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (events.isNotEmpty()) {
+                    val selectedEvent = events[position]
+                    fetchZones(selectedEvent.event_id)
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        binding.zoneSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (zones.isNotEmpty()) {
+                    currentZoneId = zones[position].zone_id
+                    // Persist selection
+                    getSharedPreferences("crowd_prefs", MODE_PRIVATE).edit()
+                        .putInt("last_zone_id", currentZoneId)
+                        .apply()
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    private fun fetchEvents() {
+        RetrofitClient.apiService.getEvents().enqueue(object : Callback<List<Event>> {
+            override fun onResponse(call: Call<List<Event>>, response: Response<List<Event>>) {
+                if (response.isSuccessful) {
+                    events = response.body() ?: emptyList()
+                    val eventNames = events.map { it.event_name }
+                    val adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, eventNames)
+                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                    binding.eventSpinner.adapter = adapter
+                }
+            }
+            override fun onFailure(call: Call<List<Event>>, t: Throwable) {
+                Log.e(TAG, "Failed to fetch events: ${t.message}")
+            }
+        })
+    }
+
+    private fun fetchZones(eventId: Int) {
+        RetrofitClient.apiService.getZonesForEvent(eventId).enqueue(object : Callback<List<Zone>> {
+            override fun onResponse(call: Call<List<Zone>>, response: Response<List<Zone>>) {
+                if (response.isSuccessful) {
+                    zones = response.body() ?: emptyList()
+                    val zoneNames = zones.map { it.zone_name }
+                    val adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, zoneNames)
+                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                    binding.zoneSpinner.adapter = adapter
+                    
+                    // Restore last selection if it exists in this event
+                    val lastId = getSharedPreferences("crowd_prefs", MODE_PRIVATE).getInt("last_zone_id", -1)
+                    val lastIndex = zones.indexOfFirst { it.zone_id == lastId }
+                    if (lastIndex != -1) {
+                        binding.zoneSpinner.setSelection(lastIndex)
+                        currentZoneId = lastId
+                    }
+                }
+            }
+            override fun onFailure(call: Call<List<Zone>>, t: Throwable) {
+                Log.e(TAG, "Failed to fetch zones: ${t.message}")
             }
         })
     }

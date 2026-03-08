@@ -326,6 +326,7 @@ const AdminDashboard = () => {
           {activeTab === "reports" && <ReportsTab />}
           {activeTab === "monitoring" && (
             <MonitoringTab
+              selectedEvent={selectedEvent}
               zones={zones}
               blockGate={blockGate}
               unblockGate={unblockGate}
@@ -1035,14 +1036,33 @@ const ReportsTab = () => {
 
 /* ---------------- MONITORING TAB ---------------- */
 
-const MonitoringTab = ({ zones, blockGate, unblockGate, triggerExitPlan }) => {
+const MonitoringTab = ({ selectedEvent, zones, blockGate, unblockGate, triggerExitPlan }) => {
 
   const [selectedZone, setSelectedZone] = useState(null);
   const [readings, setReadings] = useState([]);
+  const [liveStatus, setLiveStatus] = useState([]);
 
-  // Poll readings every 5 seconds
+  // 1. Poll live status for the WHOLE EVENT
   useEffect(() => {
+    if (!selectedEvent) return;
 
+    const fetchLiveStatus = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/events/${selectedEvent}/live-status`);
+        const data = await res.json();
+        setLiveStatus(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Could not load live status", err);
+      }
+    };
+
+    fetchLiveStatus();
+    const interval = setInterval(fetchLiveStatus, 5000);
+    return () => clearInterval(interval);
+  }, [selectedEvent]);
+
+  // 2. Poll readings for a SPECIFIC ZONE (Chart view)
+  useEffect(() => {
     if (!selectedZone) return;
 
     const fetchReadings = () => {
@@ -1053,11 +1073,8 @@ const MonitoringTab = ({ zones, blockGate, unblockGate, triggerExitPlan }) => {
     };
 
     fetchReadings();
-
     const interval = setInterval(fetchReadings, 5000);
-
     return () => clearInterval(interval);
-
   }, [selectedZone]);
 
   const latestCount =
@@ -1070,117 +1087,123 @@ const MonitoringTab = ({ zones, blockGate, unblockGate, triggerExitPlan }) => {
     1
   );
 
+  const getStatusColor = (density, limit) => {
+    const ratio = density / limit;
+    if (ratio >= 0.9) return "#ef4444"; // Red (Critical)
+    if (ratio >= 0.7) return "#f59e0b"; // Orange (Busy)
+    return "#22c55e"; // Green (Safe)
+  };
+
   return (
     <div className="tab-view">
 
-      <h1>Live Zone Monitoring</h1>
+      <header className="view-header">
+        <h1>Live Monitoring</h1>
+        <p>Real-time updates every 5 seconds</p>
+      </header>
 
-      {/* ZONE SELECTOR */}
+      {/* EVENT SUMMARY GRID */}
+      {selectedEvent && liveStatus.length > 0 && (
+        <div className="live-summary-grid" style={{ marginBottom: "40px" }}>
+          {liveStatus.map((zone) => (
+            <div 
+              key={zone.zone_id} 
+              className="dashboard-card status-card"
+              style={{ 
+                borderLeft: `6px solid ${getStatusColor(zone.density_value, zone.safe_limit)}`,
+                cursor: "pointer"
+              }}
+              onClick={() => setSelectedZone(zone.zone_id)}
+            >
+              <div className="status-card-header">
+                <div>
+                  <h3 style={{ margin: 0 }}>{zone.zone_name}</h3>
+                  <span className={`role-badge ${zone.zone_type}`}>
+                    {zone.zone_type.toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div className="big-stat">{zone.people_count}</div>
+                  <small>PEOPLE</small>
+                </div>
+              </div>
+              
+              <div className="status-card-footer" style={{ marginTop: "15px" }}>
+                <div>
+                  <strong>Density:</strong> {zone.density_value.toFixed(2)} p/m²
+                </div>
+                <div style={{ fontSize: "0.8rem", color: "#666" }}>
+                  Limit: {zone.safe_limit} p/m²
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      <select
-        onChange={(e) => setSelectedZone(e.target.value || null)}
-      >
-        <option value="">Select Zone</option>
+      {/* ZONE SELECTOR FOR CHART */}
+      <div className="dashboard-card">
+        <h3>Detailed Intelligence</h3>
+        <select
+          className="styled-select"
+          value={selectedZone || ""}
+          onChange={(e) => setSelectedZone(e.target.value || null)}
+        >
+          <option value="">Choose a zone for trend analysis...</option>
+          {zones.map((z) => (
+            <option key={z.zone_id} value={z.zone_id}>
+              {z.zone_name} ({z.zone_type})
+            </option>
+          ))}
+        </select>
+      </div>
 
-        {zones.map((z) => (
-          <option key={z.zone_id} value={z.zone_id}>
-            {z.zone_name}
-          </option>
-        ))}
-
-      </select>
-
-
-      {/* ZONE DATA */}
-
+      {/* CHART VIEW */}
       {selectedZone && (
-
-        <>
-
-          <h2 style={{ marginTop: "20px" }}>
-            Current Crowd Count
-          </h2>
-
-          <h1
-            style={{
-              fontSize: "4rem",
-              color: "#4f46e5"
-            }}
-          >
-            {latestCount}
-          </h1>
-
-          <p>People Detected (updates every 5s)</p>
-
-
-          {/* CROWD TREND CHART */}
+        <div className="dashboard-card" style={{ marginTop: "24px" }}>
+          <div className="chart-header">
+            <h2>{zones.find(z => z.zone_id == selectedZone)?.zone_name} Trend</h2>
+            <div className="current-count-display">
+              <span className="count-val">{latestCount}</span>
+              <span className="count-label">Current Count</span>
+            </div>
+          </div>
 
           <div
+            className="bar-chart-container"
             style={{
               display: "flex",
-              gap: "5px",
-              height: "150px",
+              gap: "8px",
+              height: "200px",
               alignItems: "flex-end",
-              marginTop: "20px"
+              marginTop: "40px",
+              padding: "0 10px",
+              borderBottom: "2px solid #eee"
             }}
           >
-
             {readings.map((r, index) => (
-
               <div
                 key={index}
+                className="chart-bar"
                 style={{
                   flex: 1,
-                  height: `${(r.people_count / maxCount) * 150}px`,
-                  background: "#4f46e5",
+                  height: `${(r.people_count / maxCount) * 200}px`,
+                  background: getStatusColor(r.density_value, zones.find(z => z.zone_id == selectedZone)?.safe_density_limit || 2.5),
                   borderRadius: "4px 4px 0 0",
                   minHeight: "4px",
+                  transition: "height 0.3s ease"
                 }}
+                title={`Time: ${new Date(r.timestamp).toLocaleTimeString()}\nCount: ${r.people_count}`}
               />
-
             ))}
-
           </div>
-
-
-          {/* ZONE CONTROL PANEL */}
-
-          <div style={{ marginTop: "30px" }}>
-
-            {zones
-              .filter((z) => z.zone_id == selectedZone)
-              .map((zone) => (
-
-                <div key={zone.zone_id} className="zone-card">
-
-                  <h3>{zone.zone_name} Control</h3>
-
-                  <button
-                    onClick={() => blockGate(zone.zone_id)}
-                  >
-                    Block Gate
-                  </button>
-
-                  <button
-                    onClick={() => unblockGate(zone.zone_id)}
-                  >
-                    Unblock Gate
-                  </button>
-
-                  <button
-                    onClick={() => triggerExitPlan(zone.zone_id)}
-                  >
-                    Trigger Exit Plan
-                  </button>
-
-                </div>
-
-              ))}
-
+          
+          <div className="zone-controls" style={{ marginTop: "40px", display: "flex", gap: "10px" }}>
+             <button className="btn-outline" onClick={() => blockGate(selectedZone)}>Block Gate</button>
+             <button className="btn-outline" onClick={() => unblockGate(selectedZone)}>Unblock Gate</button>
+             <button className="btn-primary" style={{ backgroundColor: "#ef4444" }} onClick={() => triggerExitPlan(selectedZone)}>Trigger Exit Plan</button>
           </div>
-
-        </>
-
+        </div>
       )}
 
     </div>

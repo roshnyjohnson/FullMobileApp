@@ -22,8 +22,7 @@ object RetrofitClient {
     // ─────────────────────────────────────────────────────────────────────────
 
     // ⚠️ CHANGE THIS to your laptop's Wi-Fi IP if using a physical phone!
-    // Example for physical phone: private const val BASE_URL = "http://192.168.1.10:8000/"
-    private const val BASE_URL = "http://192.168.1.15:8000/"
+    private const val BASE_URL = "http://192.168.1.7:8000/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY

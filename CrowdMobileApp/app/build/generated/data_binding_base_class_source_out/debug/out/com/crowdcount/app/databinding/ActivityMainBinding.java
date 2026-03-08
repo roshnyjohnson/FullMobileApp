@@ -4,6 +4,7 @@ package com.crowdcount.app.databinding;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Spinner;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -30,6 +31,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final TextView countText;
 
   @NonNull
+  public final Spinner eventSpinner;
+
+  @NonNull
   public final TextView intervalText;
 
   @NonNull
@@ -47,20 +51,31 @@ public final class ActivityMainBinding implements ViewBinding {
   @NonNull
   public final ExtendedFloatingActionButton toggleButton;
 
+  @NonNull
+  public final MaterialCardView zoneCard;
+
+  @NonNull
+  public final Spinner zoneSpinner;
+
   private ActivityMainBinding(@NonNull ConstraintLayout rootView,
       @NonNull MaterialCardView countCard, @NonNull TextView countText,
-      @NonNull TextView intervalText, @NonNull OverlayView overlayView,
-      @NonNull PreviewView previewView, @NonNull MaterialCardView statusCard,
-      @NonNull TextView statusText, @NonNull ExtendedFloatingActionButton toggleButton) {
+      @NonNull Spinner eventSpinner, @NonNull TextView intervalText,
+      @NonNull OverlayView overlayView, @NonNull PreviewView previewView,
+      @NonNull MaterialCardView statusCard, @NonNull TextView statusText,
+      @NonNull ExtendedFloatingActionButton toggleButton, @NonNull MaterialCardView zoneCard,
+      @NonNull Spinner zoneSpinner) {
     this.rootView = rootView;
     this.countCard = countCard;
     this.countText = countText;
+    this.eventSpinner = eventSpinner;
     this.intervalText = intervalText;
     this.overlayView = overlayView;
     this.previewView = previewView;
     this.statusCard = statusCard;
     this.statusText = statusText;
     this.toggleButton = toggleButton;
+    this.zoneCard = zoneCard;
+    this.zoneSpinner = zoneSpinner;
   }
 
   @Override
@@ -102,6 +117,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.eventSpinner;
+      Spinner eventSpinner = ViewBindings.findChildViewById(rootView, id);
+      if (eventSpinner == null) {
+        break missingId;
+      }
+
       id = R.id.intervalText;
       TextView intervalText = ViewBindings.findChildViewById(rootView, id);
       if (intervalText == null) {
@@ -138,8 +159,21 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.zoneCard;
+      MaterialCardView zoneCard = ViewBindings.findChildViewById(rootView, id);
+      if (zoneCard == null) {
+        break missingId;
+      }
+
+      id = R.id.zoneSpinner;
+      Spinner zoneSpinner = ViewBindings.findChildViewById(rootView, id);
+      if (zoneSpinner == null) {
+        break missingId;
+      }
+
       return new ActivityMainBinding((ConstraintLayout) rootView, countCard, countText,
-          intervalText, overlayView, previewView, statusCard, statusText, toggleButton);
+          eventSpinner, intervalText, overlayView, previewView, statusCard, statusText,
+          toggleButton, zoneCard, zoneSpinner);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));
