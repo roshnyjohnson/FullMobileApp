@@ -87,6 +87,9 @@ class RegisterProfileRequest(BaseModel):
     assigned_admin_id: Optional[str] = None   # Only for volunteers — their admin
     assigned_zone_id: Optional[int] = None    # Only for volunteers — their gate/entry
 
+class UpdateProfileRequest(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
 
 class CrowdRequest(BaseModel):
     device_id: str       # ID of the phone/camera sending data
@@ -198,6 +201,34 @@ def get_profile(user_id: str):
         raise HTTPException(status_code=404, detail="Profile not found")
 
     return response.data
+
+
+@app.put("/profile/{user_id}")
+def update_profile(user_id: str, data: UpdateProfileRequest):
+    """
+    Updates the user's editable profile info (full_name and phone).
+    """
+    update_data = {}
+    if data.full_name is not None:
+        update_data["full_name"] = data.full_name
+    if data.phone is not None:
+        update_data["phone"] = data.phone
+        
+    if not update_data:
+        return {"message": "No data provided to update."}
+
+    # Verify user exists first
+    user_check = supabase.table("profiles").select("id").eq("id", user_id).execute()
+    if not user_check.data:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    # Update profile
+    response = supabase.table("profiles").update(update_data).eq("id", user_id).execute()
+    
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to update profile")
+        
+    return {"message": "Profile updated successfully", "profile": response.data[0]}
 
 
 @app.get("/admins")
@@ -661,6 +692,41 @@ def get_alerts():
         .select("*")
         .order("timestamp", desc=True)
         .limit(20)
+        .execute()
+    )
+    return response.data
+
+
+@app.get("/alerts/volunteer/{volunteer_id}")
+def get_volunteer_alerts(volunteer_id: str):
+    """
+    Get active alerts tailored to a specific volunteer based on their deployments.
+    Only fetches alerts from the last 15 minutes to act as real-time push notifications.
+    """
+    # 1. Fetch where the volunteer is currently deployed
+    deployments_res = (
+        supabase.table("volunteer_deployments")
+        .select("zone_id")
+        .eq("volunteer_id", volunteer_id)
+        .in_("deployment_status", ["general", "emergency_assigned", "reassigned", "assigned"])
+        .execute()
+    )
+    
+    zone_ids = [d["zone_id"] for d in (deployments_res.data or []) if d.get("zone_id")]
+    
+    if not zone_ids:
+        return []
+
+    # 2. Fetch alerts explicitly targeted at these zones or overarching parents over the last 15 min
+    fifteen_mins_ago = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+    
+    response = (
+        supabase.table("risk_status")
+        .select("*")
+        .in_("targeted_volunteer_zone_id", zone_ids)
+        .gte("timestamp", fifteen_mins_ago)
+        .order("timestamp", desc=True)
+        .limit(10)
         .execute()
     )
     return response.data
@@ -1655,6 +1721,7 @@ def event_report(event_id: int):
         for a in all_alerts
     ]
 
+
     # ============================================================
     # FINAL RESPONSE
     # ============================================================
@@ -1666,3 +1733,104 @@ def event_report(event_id: int):
         "volunteer_summary":     volunteer_summary,
         "incident_log":          incident_log
     }
+
+# ==========================================
+# SYSTEM REPORTS (Daily, Weekly, Custom)
+# ==========================================
+
+from fastapi.responses import StreamingResponse
+import io
+from .reports import generate_pdf_report, generate_csv_report
+
+def fetch_report_data(start_dt: datetime, end_dt: datetime, event_id: int | None = None):
+    zone_ids = []
+    zone_map = {}
+    if event_id:
+        zones_res = supabase.table("zones").select("zone_id, zone_name").eq("event_id", event_id).execute()
+        zone_ids = [z["zone_id"] for z in zones_res.data] if zones_res.data else []
+        zone_map = {z["zone_id"]: z["zone_name"] for z in zones_res.data} if zones_res.data else {}
+        if not zone_ids:
+            return {"readings": [], "alerts": [], "zone_map": {}}
+
+    # Fetch readings
+    readings_query = supabase.table("crowd_readings").select("*").gte("timestamp", start_dt.isoformat()).lte("timestamp", end_dt.isoformat())
+    if event_id and zone_ids:
+        readings_query = readings_query.in_("zone_id", zone_ids)
+    readings_res = readings_query.execute()
+
+    # Fetch alerts
+    alerts_query = supabase.table("risk_status").select("*").gte("timestamp", start_dt.isoformat()).lte("timestamp", end_dt.isoformat())
+    if event_id and zone_ids:
+        alerts_query = alerts_query.in_("zone_id", zone_ids)
+    alerts_res = alerts_query.execute()
+
+    return {
+        "readings": readings_res.data or [],
+        "alerts": alerts_res.data or [],
+        "zone_map": zone_map
+    }
+
+@app.get("/reports/custom")
+def generate_custom_report(start_date: str, end_date: str, request: Request, event_id: int | None = None):
+    """
+    Generates a generic system report between two ISO timestamps.
+    Format defaults to PDF. Override with ?format=csv
+    """
+    try:
+        start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use ISO format (e.g. 2026-03-01T00:00:00Z)")
+        
+    format_type = request.query_params.get("format", "pdf").lower()
+    data = fetch_report_data(start_dt, end_dt, event_id)
+    
+    if format_type == "csv":
+        csv_bytes = generate_csv_report(data, start_dt, end_dt)
+        return StreamingResponse(
+            io.BytesIO(csv_bytes),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=custom-report.csv"}
+        )
+    else:
+        pdf_bytes = generate_pdf_report(data, "custom", start_dt, end_dt)
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=custom-report.pdf"}
+        )
+
+@app.get("/reports/{timeframe}")
+def generate_system_report(timeframe: str, request: Request, event_id: int | None = None):
+    """
+    Generates a daily or weekly system report in PDF or CSV format.
+    Format defaults to PDF. Override with ?format=csv
+    """
+    from datetime import timezone
+    format_type = request.query_params.get("format", "pdf").lower()
+    
+    now = datetime.now(timezone.utc)
+    
+    if timeframe.lower() == "daily":
+        start_date = now - timedelta(days=1)
+    elif timeframe.lower() == "weekly":
+        start_date = now - timedelta(days=7)
+    else:
+        raise HTTPException(status_code=400, detail="Timeframe must be 'daily' or 'weekly'. For custom dates, use /reports/custom")
+        
+    data = fetch_report_data(start_date, now, event_id)
+    
+    if format_type == "csv":
+        csv_bytes = generate_csv_report(data, start_date, now)
+        return StreamingResponse(
+            io.BytesIO(csv_bytes),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={timeframe}-report.csv"}
+        )
+    else:
+        pdf_bytes = generate_pdf_report(data, timeframe, start_date, now)
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={timeframe}-report.pdf"}
+        )

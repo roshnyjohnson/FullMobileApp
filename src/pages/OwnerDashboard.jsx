@@ -6,9 +6,7 @@ import { supabase } from "../supabaseClient";
 
 const OwnerDashboard = () => {
   const navigate = useNavigate();
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-
-  // Read logged-in user from localStorage (set during login)
+// Read logged-in user from localStorage (set during login)
   const ownerId = localStorage.getItem("user_id");
 
   // Data State
@@ -42,8 +40,6 @@ const OwnerDashboard = () => {
 
     fetchData();
   }, [ownerId]);
-
-  const togglePanel = () => setIsPanelOpen(!isPanelOpen);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -79,25 +75,10 @@ const OwnerDashboard = () => {
   return (
     <div className="dashboard-container">
 
-      {/* --- SIDE PANEL (HAMBURGER MENU) --- */}
-      <div className={`side-panel ${isPanelOpen ? "open" : ""}`}>
-        <button className="close-btn" onClick={togglePanel}>×</button>
-        <div className="panel-content">
-          <h2 className="panel-logo">WatchTower</h2>
-          <hr className="divider" />
-          <nav className="panel-nav">
-            <button className="panel-link" onClick={handleLogout}>Logout</button>
-          </nav>
-        </div>
-      </div>
-
       {/* --- MAIN CONTENT --- */}
-      <main className={`main-content ${isPanelOpen ? "shifted" : ""}`}>
+      <main className="main-content">
         <header className="dashboard-header">
           <div className="header-left">
-            <button className="menu-icon" onClick={togglePanel}>
-              ☰
-            </button>
             <h1 className="app-name">WatchTower <span className="role-tag">Owner</span></h1>
           </div>
           <button className="logout-header-btn" onClick={handleLogout}>Logout</button>
