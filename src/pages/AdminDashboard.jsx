@@ -46,8 +46,17 @@ const AdminDashboard = () => {
 
   /* ---------------- GLOBAL ALERT STATE ---------------- */
   
+  const loadAdminDismissedAlerts = () => {
+    try {
+      const stored = localStorage.getItem("adminDismissedAlerts");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+
   const [activeAlerts, setActiveAlerts] = useState([]);
-  const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
+  const [dismissedAlerts, setDismissedAlerts] = useState(loadAdminDismissedAlerts());
   
   // Alert History Drawer State
   const [showHistory, setShowHistory] = useState(false);
@@ -63,7 +72,7 @@ const AdminDashboard = () => {
           
           // Filter to only high/critical alerts not yet dismissed
           const critical = (data || []).filter(a => {
-             if (dismissedAlerts.has(a.id)) return false;
+             if (dismissedAlerts.has(a.id || a.timestamp)) return false;
              if (!a.risk_level) return false;
              const r = a.risk_level.toUpperCase();
              // Pop up for severe situations
@@ -81,8 +90,22 @@ const AdminDashboard = () => {
   }, [dismissedAlerts]);
 
   const dismissAlert = (id) => {
-    setDismissedAlerts(prev => new Set(prev).add(id));
-    setActiveAlerts(prev => prev.filter(a => a.id !== id));
+    setDismissedAlerts(prev => {
+      const updated = new Set(prev).add(id);
+      localStorage.setItem("adminDismissedAlerts", JSON.stringify([...updated]));
+      return updated;
+    });
+    setActiveAlerts(prev => prev.filter(a => (a.id || a.timestamp) !== id));
+  };
+
+  const dismissAllAlerts = () => {
+    setDismissedAlerts(prev => {
+      const updated = new Set(prev);
+      activeAlerts.forEach(a => updated.add(a.id || a.timestamp));
+      localStorage.setItem("adminDismissedAlerts", JSON.stringify([...updated]));
+      return updated;
+    });
+    setActiveAlerts([]);
   };
 
   /* ---------------- LOAD EVENTS ---------------- */
@@ -132,7 +155,7 @@ const AdminDashboard = () => {
           `${API_BASE}/pending-users?approver_id=${adminId}&approver_role=admin`
         );
         const data = await res.json();
-        setPendingApprovals(data);
+        setPendingApprovals(Array.isArray(data) ? data : []);
       } catch {
         console.error("Could not load pending users");
       }
@@ -270,21 +293,21 @@ const AdminDashboard = () => {
 
       {/* GLOBAL ALERT OVERLAY */}
       {activeAlerts.length > 0 && (
-        <div className="alert-overlay" style={{
+        <div className="alert-overlay" onClick={dismissAllAlerts} style={{
           position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
           backgroundColor: "rgba(0, 0, 0, 0.7)", zIndex: 9999,
           display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: "center", gap: "20px", padding: "20px"
         }}>
           {activeAlerts.map(alert => (
-            <div key={alert.id} className="alert-toast" style={{
+            <div key={alert.id || alert.timestamp} className="alert-toast" onClick={(e) => e.stopPropagation()} style={{
               backgroundColor: "#fff0f0", border: "3px solid #ff4444", borderRadius: "12px",
               padding: "20px 30px", width: "100%", maxWidth: "600px",
               boxShadow: "0 10px 30px rgba(0,0,0,0.5)", animation: "popIn 0.3s ease-out"
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#d32f2f", marginBottom: "15px" }}>
                 <h2>⚠️ {alert.risk_level}</h2>
-                <button onClick={() => dismissAlert(alert.id)} style={{ background: "none", border: "none", fontSize: "24px", fontWeight: "bold", cursor: "pointer", color: "#999" }}>X</button>
+                <button onClick={() => dismissAlert(alert.id || alert.timestamp)} style={{ background: "none", border: "none", fontSize: "24px", fontWeight: "bold", cursor: "pointer", color: "#999" }}>X</button>
               </div>
               <p style={{ fontSize: "1.1rem", marginBottom: "10px" }}>
                 <strong>Zone ID:</strong> {alert.zone_id} | <strong>Time:</strong> {new Date(alert.timestamp).toLocaleTimeString()}
@@ -449,10 +472,19 @@ const AdminDashboard = () => {
               loadingApprovals={loadingApprovals}
               approveVolunteer={approveVolunteer}
               adminId={adminId}
+              events={events}
+              selectedEvent={selectedEvent}
+              setSelectedEvent={setSelectedEvent}
             />
           )}
 
-          {activeTab === "analysis" && <AnalysisTab />}
+          {activeTab === "analysis" && (
+            <AnalysisTab
+              selectedEvent={selectedEvent}
+              setSelectedEvent={setSelectedEvent}
+              events={events}
+            />
+          )}
           {activeTab === "reports" && <ReportsTab selectedEvent={selectedEvent} events={events} setSelectedEvent={setSelectedEvent} />}
           {activeTab === "monitoring" && (
             <MonitoringTab

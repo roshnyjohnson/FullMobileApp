@@ -335,7 +335,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startCountdown() {
         stopCountdown()
-        val totalSec = (frameAnalyzer?.detectionIntervalMs ?: 10_000L) / 1000
+        val totalSec = (frameAnalyzer?.detectionIntervalMs ?: 2_000L) / 1000
         var remaining = totalSec
 
         countdownRunnable = object : Runnable {

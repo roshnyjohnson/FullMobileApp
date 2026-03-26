@@ -473,7 +473,7 @@ def update_crowd(data: CrowdRequest):
                             supabase.table("volunteer_deployments")
                             .select("id, volunteer_id, profiles(full_name)")
                             .eq("event_id", event_id_for_zone)
-                            .eq("deployment_status", "general")
+                            .in_("deployment_status", ["pending", "accepted"])
                             .is_("zone_id", "null")
                             .execute()
                         )
@@ -706,15 +706,23 @@ def get_volunteer_alerts(volunteer_id: str):
     # 1. Fetch where the volunteer is currently deployed
     deployments_res = (
         supabase.table("volunteer_deployments")
-        .select("zone_id")
+        .select("zone_id, event_id")
         .eq("volunteer_id", volunteer_id)
-        .in_("deployment_status", ["general", "emergency_assigned", "reassigned", "assigned"])
+        .in_("deployment_status", ["pending", "accepted", "emergency_assigned", "reassigned"])
         .execute()
     )
     
-    zone_ids = [d["zone_id"] for d in (deployments_res.data or []) if d.get("zone_id")]
+    # Support "General Backup" roles by tracking the whole event_id, not just the missing zone_id
+    event_ids = list(set([d.get("event_id") for d in (deployments_res.data or []) if d.get("event_id")]))
     
-    if not zone_ids:
+    if not event_ids:
+        return []
+
+    # Get every single sub-zone operating under the events this volunteer is active in
+    zones_res = supabase.table("zones").select("zone_id").in_("event_id", event_ids).execute()
+    all_event_zones = [z["zone_id"] for z in (zones_res.data or []) if z.get("zone_id")]
+
+    if not all_event_zones:
         return []
 
     # 2. Fetch alerts explicitly targeted at these zones or overarching parents over the last 15 min
@@ -723,7 +731,7 @@ def get_volunteer_alerts(volunteer_id: str):
     response = (
         supabase.table("risk_status")
         .select("*")
-        .in_("targeted_volunteer_zone_id", zone_ids)
+        .in_("targeted_volunteer_zone_id", all_event_zones)
         .gte("timestamp", fifteen_mins_ago)
         .order("timestamp", desc=True)
         .limit(10)
@@ -905,11 +913,13 @@ def deploy_volunteers(event_id: int):
     if start.tzinfo is None:
         start = start.replace(tzinfo=timezone.utc)
     hours_until_event = (start - now).total_seconds() / 3600
-    if hours_until_event < 24:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Deployment list can only be published at least 24 hours before the event. Currently {hours_until_event:.1f} hrs away."
-        )
+    
+    # Check 24-hour rule (REMOVED to allow immediate testing & deployment)
+    # if hours_until_event < 24:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail=f"Deployment list can only be published at least 24 hours before the event. Currently {hours_until_event:.1f} hrs away."
+    #     )
 
     # --- Step 3: Fetch all zones for this event ---
     zones_res = supabase.table("zones").select("*").eq("event_id", event_id).execute()
@@ -1028,7 +1038,7 @@ def deploy_volunteers(event_id: int):
             "event_id": event_id,
             "volunteer_id": volunteers[v_index]["id"],
             "zone_id": None,
-            "deployment_status": "general",
+            "deployment_status": "pending",
             "published_at": published_now
         })
         v_index += 1
@@ -1302,6 +1312,52 @@ def respond_deployment(req: RespondDeploymentRequest):
             result["replacement"] = None
             result["warning"] = "No available volunteer to replace. Admin should review."
 
+    return result
+
+
+@app.get("/admin-volunteers/{admin_id}")
+def get_admin_volunteers(admin_id: str):
+    """
+    Get all approved volunteers under a specific admin,
+    plus their latest deployment zone if any.
+    """
+    vols_res = (
+        supabase.table("profiles")
+        .select("id, full_name, phone")
+        .eq("role", "volunteer")
+        .eq("is_approved", True)
+        .eq("assigned_admin_id", admin_id)
+        .execute()
+    )
+    vols = vols_res.data or []
+    
+    result = []
+    for v in vols:
+        dep_res = (
+            supabase.table("volunteer_deployments")
+            .select("deployment_status, zones(zone_name)")
+            .eq("volunteer_id", v["id"])
+            .order("published_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        dep = dep_res.data[0] if dep_res.data else None
+        
+        status = dep["deployment_status"] if dep else "Not Deployed"
+        zone_name = "None"
+        if dep and dep.get("zones"):
+            zone_name = dep["zones"].get("zone_name", "None")
+        if status == "general":
+            zone_name = "General Backup"
+            
+        result.append({
+            "id": v["id"],
+            "full_name": v["full_name"],
+            "phone": v.get("phone", "N/A"),
+            "status": status,
+            "zone_name": zone_name
+        })
+        
     return result
 
 

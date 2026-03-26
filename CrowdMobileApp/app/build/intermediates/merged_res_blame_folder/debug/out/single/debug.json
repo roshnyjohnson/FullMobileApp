@@ -1,26 +1,30 @@
 [
     {
-        "merged": "com.crowdcount.app-merged_res-41:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "com.crowdcount.app-main-43:/mipmap-anydpi-v26/ic_launcher_round.xml"
+        "merged": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-merged_res-41:\\drawable_ic_launcher_foreground.xml.flat",
+        "source": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-main-43:\\drawable\\ic_launcher_foreground.xml"
     },
     {
-        "merged": "com.crowdcount.app-merged_res-41:/drawable_ic_launcher_foreground.xml.flat",
-        "source": "com.crowdcount.app-main-43:/drawable/ic_launcher_foreground.xml"
+        "merged": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-merged_res-41:\\layout_activity_main.xml.flat",
+        "source": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-main-43:\\layout\\activity_main.xml"
     },
     {
-        "merged": "com.crowdcount.app-merged_res-41:/layout_activity_main.xml.flat",
-        "source": "com.crowdcount.app-main-43:/layout/activity_main.xml"
+        "merged": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-merged_res-41:\\mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-main-43:\\mipmap-anydpi-v26\\ic_launcher.xml"
     },
     {
-        "merged": "com.crowdcount.app-merged_res-41:/mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "com.crowdcount.app-main-43:/mipmap-anydpi-v26/ic_launcher.xml"
+        "merged": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-merged_res-41:\\xml_network_security_config.xml.flat",
+        "source": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-main-43:\\xml\\network_security_config.xml"
     },
     {
         "merged": "com.crowdcount.app-merged_res-41:/xml_network_security_config.xml.flat",
         "source": "com.crowdcount.app-main-43:/xml/network_security_config.xml"
     },
     {
-        "merged": "com.crowdcount.app-merged_res-41:/drawable_ic_launcher_background.xml.flat",
-        "source": "com.crowdcount.app-main-43:/drawable/ic_launcher_background.xml"
+        "merged": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-merged_res-41:\\mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-main-43:\\mipmap-anydpi-v26\\ic_launcher_round.xml"
+    },
+    {
+        "merged": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-merged_res-41:\\drawable_ic_launcher_background.xml.flat",
+        "source": "C:\\Users\\ASUS\\.gradle\\daemon\\8.4\\com.crowdcount.app-main-43:\\drawable\\ic_launcher_background.xml"
     }
 ]

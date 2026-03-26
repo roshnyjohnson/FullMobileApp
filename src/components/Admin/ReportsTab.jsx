@@ -131,7 +131,7 @@ const ReportsTab = ({ selectedEvent, events, setSelectedEvent }) => {
           <option value="">-- Choose an Event --</option>
           {events && events.map((ev) => (
             <option key={ev.event_id} value={ev.event_id}>
-              {ev.name} ({ev.location})
+              {ev.event_name} ({ev.location})
             </option>
           ))}
         </select>

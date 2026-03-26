@@ -105,7 +105,7 @@ const MonitoringTab = ({ selectedEvent, setSelectedEvent, events, blockGate, unb
             >
                 <option value="" disabled>Select an unfolding event...</option>
                 {events.map((ev) => (
-                    <option key={ev.id} value={ev.id}>{ev.event_name}</option>
+                    <option key={ev.event_id} value={ev.event_id}>{ev.event_name}</option>
                 ))}
             </select>
         </div>

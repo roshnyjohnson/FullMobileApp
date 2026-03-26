@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow plain HTTP to local network IPs (192.168.x.x) for FastAPI server -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">192.168.1.7</domain>
+        <domain includeSubdomains="true">10.101.56.220</domain>
+        <domain includeSubdomains="true">10.194.204.220</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">localhost</domain>
     </domain-config>
     <!-- Also allow emulator alias just in case -->
     <domain-config cleartextTrafficPermitted="true">

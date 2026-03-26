@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * CameraX ImageAnalysis.Analyzer that runs person detection
- * at a configurable interval (default 10 s).
+ * at a configurable interval (default 2 s).
  *
  * Between detection cycles the camera preview stays active
  * but no ML inference is executed, saving battery and CPU.
@@ -32,7 +32,7 @@ class FrameAnalyzer(
     }
 
     /** Interval between detections in milliseconds (configurable). */
-    var detectionIntervalMs: Long = 10_000L
+    var detectionIntervalMs: Long = 2_000L
 
     /** Master switch — when false no inference runs at all. */
     var isDetectionEnabled: Boolean = false

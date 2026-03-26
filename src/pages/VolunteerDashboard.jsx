@@ -12,8 +12,17 @@ function VolunteerDashboard() {
   const [loading, setLoading] = useState(true);
 
   // Alert State
+  const loadVolDismissedAlerts = () => {
+    try {
+      const stored = localStorage.getItem("volDismissedAlerts");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+
   const [activeAlerts, setActiveAlerts] = useState([]);
-  const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
+  const [dismissedAlerts, setDismissedAlerts] = useState(loadVolDismissedAlerts());
   
   // Tab State
   const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard', 'history', 'profile'
@@ -29,7 +38,7 @@ function VolunteerDashboard() {
   const fetchDeployments = async () => {
     if (!volunteerId) return;
     try {
-      const res = await fetch(`${API_BASE}/volunteer-deployments/${volunteerId}`);
+      const res = await fetch(`${API_BASE}/my-deployments/${volunteerId}`);
       if (res.ok) {
         const data = await res.json();
         setDeployments(data || []);
@@ -47,7 +56,7 @@ function VolunteerDashboard() {
         setAllRecentAlerts(data || []); // Store all alerts for History
         
         // Filter out alerts the user has already dismissed
-        const newAlerts = (data || []).filter(a => !dismissedAlerts.has(a.id));
+        const newAlerts = (data || []).filter(a => !dismissedAlerts.has(a.id || a.timestamp));
         setActiveAlerts(newAlerts);
       }
     } catch (err) {
@@ -84,11 +93,21 @@ function VolunteerDashboard() {
 
   const dismissAlert = (alertId) => {
     setDismissedAlerts(prev => {
-      const newSet = new Set(prev);
-      newSet.add(alertId);
-      return newSet;
+      const updated = new Set(prev).add(alertId);
+      localStorage.setItem("volDismissedAlerts", JSON.stringify([...updated]));
+      return updated;
     });
-    setActiveAlerts(prev => prev.filter(a => a.id !== alertId));
+    setActiveAlerts(prev => prev.filter(a => (a.id || a.timestamp) !== alertId));
+  };
+
+  const dismissAllAlerts = () => {
+    setDismissedAlerts(prev => {
+      const updated = new Set(prev);
+      activeAlerts.forEach(a => updated.add(a.id || a.timestamp));
+      localStorage.setItem("volDismissedAlerts", JSON.stringify([...updated]));
+      return updated;
+    });
+    setActiveAlerts([]);
   };
 
   // Accept or Reject a deployment invite
@@ -150,13 +169,13 @@ function VolunteerDashboard() {
       
       {/* ALERT POPUP OVERLAY */}
       {activeAlerts.length > 0 && (
-        <div className="alert-overlay" style={alertOverlayStyle}>
+        <div className="alert-overlay" style={alertOverlayStyle} onClick={dismissAllAlerts}>
           {activeAlerts.map(alert => (
-            <div key={alert.id} className="alert-toast" style={alertToastStyle}>
+            <div key={alert.id || alert.timestamp} className="alert-toast" style={alertToastStyle} onClick={(e) => e.stopPropagation()}>
               <div style={alertHeaderStyle}>
                 <h2>⚠️ {alert.risk_level}</h2>
                 <button 
-                  onClick={() => dismissAlert(alert.id)}
+                  onClick={() => dismissAlert(alert.id || alert.timestamp)}
                   style={dismissButtonStyle}
                 >
                   X

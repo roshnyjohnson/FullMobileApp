@@ -14,7 +14,7 @@ import {
   Cell
 } from "recharts";
 
-const AnalysisTab = () => {
+const AnalysisTab = ({ selectedEvent, setSelectedEvent, events }) => {
   const [zones, setZones] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [historicalData, setHistoricalData] = useState([]);
@@ -22,16 +22,21 @@ const AnalysisTab = () => {
 
   // Fetch zones + alerts + historical readings
   const fetchData = async () => {
+    if (!selectedEvent) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const [zonesRes, alertsRes] = await Promise.all([
-        fetch(`${API_BASE}/zones`),
+        fetch(`${API_BASE}/events/${selectedEvent}/zones`),
         fetch(`${API_BASE}/alerts`)
       ]);
 
       const zonesData = await zonesRes.json();
       const alertsData = await alertsRes.json();
 
-      setZones(zonesData || []);
+      // Wait to set zones until we have their live counts
       setAlerts(alertsData || []);
 
       // Fetch readings for each zone to build historical trend
@@ -40,11 +45,6 @@ const AnalysisTab = () => {
           fetch(`${API_BASE}/readings/${z.zone_id}?limit=20`).then(r => r.json())
         );
         const allReadings = await Promise.all(readingsPromises);
-        
-        // Transform for LineChart (Time-based alignment)
-        // This is a bit complex as timestamps might not align perfectly.
-        // For simplicity, we'll just use the latest 20 points from the first zone as a base
-        // Or better, flatten them into a format Recharts likes
         
         const combined = {};
         allReadings.forEach((zoneReadings, idx) => {
@@ -56,7 +56,18 @@ const AnalysisTab = () => {
           });
         });
 
+        const zonesWithLiveCounts = zonesData.map((z, idx) => {
+          const latestReading = allReadings[idx] && allReadings[idx].length > 0 ? allReadings[idx][0] : null;
+          return {
+            ...z,
+            current_people_count: latestReading ? latestReading.people_count : 0
+          };
+        });
+        
+        setZones(zonesWithLiveCounts);
         setHistoricalData(Object.values(combined).sort((a,b) => a.time.localeCompare(b.time)));
+      } else {
+        setZones(zonesData || []);
       }
 
     } catch (err) {
@@ -70,7 +81,7 @@ const AnalysisTab = () => {
     fetchData();
     const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedEvent]);
 
   const getRiskColor = (riskLevel) => {
     if (!riskLevel) return "#22c55e";
@@ -84,7 +95,7 @@ const AnalysisTab = () => {
   const capacityData = zones.map(z => ({
     name: z.zone_name,
     capacity: z.max_capacity,
-    current: Math.round(z.current_density * (z.length_m * z.width_m)) || 0
+    current: z.current_people_count || 0
   }));
 
   if (loading) {
@@ -94,10 +105,33 @@ const AnalysisTab = () => {
   return (
     <div className="analysis-view" style={{ padding: "20px" }}>
       <header className="view-header" style={{ marginBottom: "30px" }}>
-        <h1>Intelligence Dashboard</h1>
-        <p>Advanced analytics and predictive insights</p>
+        <div>
+          <h1>Intelligence Dashboard</h1>
+          <p>Advanced analytics and predictive insights</p>
+        </div>
+        <div className="event-picker" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <label style={{ fontWeight: "600", fontSize: "0.9rem", color: "#64748b" }}>Active Event:</label>
+            <select 
+                value={selectedEvent || ""} 
+                onChange={(e) => setSelectedEvent(e.target.value)}
+                className="styled-select"
+                style={{ minWidth: "250px" }}
+            >
+                <option value="" disabled>Select an unfolding event...</option>
+                {(events || []).map((ev) => (
+                    <option key={ev.event_id} value={ev.event_id}>{ev.event_name}</option>
+                ))}
+            </select>
+        </div>
       </header>
 
+      {!selectedEvent ? (
+          <div className="dashboard-card" style={{ textAlign: "center", padding: "80px 20px" }}>
+            <div style={{ fontSize: "3rem", marginBottom: "20px" }}>📈</div>
+            <h2>No Event Selected</h2>
+            <p style={{ color: "#64748b" }}>Please select an event from the selector above to analyze its data.</p>
+          </div>
+      ) : (
       <div className="analysis-layout-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
         
         {/* LATEST TRENDS */}
@@ -140,7 +174,14 @@ const AnalysisTab = () => {
                 <YAxis dataKey="name" type="category" width={100} />
                 <Tooltip cursor={{fill: 'transparent'}} />
                 <Legend />
-                <Bar dataKey="current" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Current People" />
+                <Bar 
+                  dataKey="current" 
+                  fill="#3b82f6" 
+                  radius={[0, 4, 4, 0]} 
+                  name="Current People" 
+                  minPointSize={4}
+                  label={{ position: 'right', fill: '#3b82f6', fontSize: 12, fontWeight: 'bold' }} 
+                />
                 <Bar dataKey="capacity" fill="#e2e8f0" radius={[0, 4, 4, 0]} name="Safe Capacity" />
               </BarChart>
             </ResponsiveContainer>
@@ -183,6 +224,7 @@ const AnalysisTab = () => {
         </div>
 
       </div>
+      )}
     </div>
   );
 };
